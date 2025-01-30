@@ -4,7 +4,7 @@
   <img src="src/assets/app-icon.png" alt="DeepRant Logo" width="200"/>
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![Downloads](https://img.shields.io/github/downloads/yourusername/deeprant/total.svg)](https://github.com/liseami/deeprant/releases)
+  [![下载](https://img.shields.io/github/downloads/yourusername/deeprant/total.svg)](https://github.com/liseami/DeepRant/releases)
 </div>
 
 ## 🖼️ 功能预览
@@ -37,7 +37,7 @@ DeepRant 是一款专为游戏玩家设计的多语言快捷翻译工具。它�
 
 ## 🚀 快速开始
 
-1. 从 [Releases](https://github.com/yourusername/deeprant/releases) 下载最新版本
+1. 从 [Releases](https://github.com/liseami/DeepRant/releases) 下载最新版本
 2. 安装程序
 3. 运行 DeepRant
 4. 设置您喜好的快捷键
