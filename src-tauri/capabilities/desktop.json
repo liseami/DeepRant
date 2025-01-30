@@ -1,0 +1,56 @@
+{
+  "identifier": "desktop-capability",
+  "platforms": [
+    "macOS",
+    "windows"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "clipboard-manager:allow-clear",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text",
+    "store:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "exec-sh",
+          "cmd": "sh",
+          "args": [
+            "-c",
+            {
+              "validator": "\\S+"
+            }
+          ]
+        },
+        {
+          "name": "exec-osascript",
+          "cmd": "osascript",
+          "args": [
+            "-e",
+            {
+              "validator": "^tell application \"System Events\".+"
+            }
+          ]
+        },
+        {
+          "name": "exec-powershell",
+          "cmd": "powershell",
+          "args": [
+            "-Command",
+            {
+              "validator": "^Add-Type.+"
+            }
+          ]
+        }
+      ]
+    },
+    "shell:allow-spawn",
+    "shell:allow-stdin-write"
+  ]
+}

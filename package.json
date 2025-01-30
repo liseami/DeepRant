@@ -1,0 +1,36 @@
+{
+  "name": "DeepRant",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "clean": "rm -rf src-tauri/target && rm -rf dist",
+    "build:mac-arm": "tauri build --target aarch64-apple-darwin"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-clipboard-manager": "^2.2.1",
+    "@tauri-apps/plugin-global-shortcut": "^2.2.0",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-shell": "^2.2.0",
+    "@tauri-apps/plugin-store": "^2.2.0",
+    "country-flag-icons": "^1.5.14",
+    "framer-motion": "^12.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.5.1",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "vite": "^6.0.3"
+  }
+}

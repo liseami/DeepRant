@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 允许访问辅助功能API -->
+    <key>com.apple.security.personal-information.accessibility</key>
+    <true/>
+
+    <!-- 允许应用沙盒 -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+    
+    <!-- 允许脚本自动化 -->
+    <key>com.apple.security.scripting-targets</key>
+    <true/>
+    
+    <!-- 允许发送Apple Events和自动化操作 -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+    
+    <!-- 允许发送Apple Events到System Events和其他应用 -->
+    <key>com.apple.security.temporary-exception.apple-events</key>
+    <array>
+        <string>com.apple.systemevents</string>
+        <string>*</string>
+    </array>
+
+    <!-- 允许访问用户通知中心 -->
+    <key>com.apple.security.personal-information.notifications</key>
+    <true/>
+
+    <!-- 允许读取所有资源文件 -->
+    <key>com.apple.security.assets.all.read-only</key>
+    <true/>
+</dict>
+</plist>
