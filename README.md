@@ -4,7 +4,7 @@
   <img src="src/assets/app-icon.png" alt="DeepRant Logo" width="200"/>
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![下载](https://img.shields.io/github/downloads/yourusername/deeprant/total.svg)](https://github.com/liseami/DeepRant/releases)
+
 </div>
 
 ## 🖼️ 功能预览
@@ -58,6 +58,63 @@ DeepRant 是一款专为游戏玩家设计的多语言快捷翻译工具。它�
 ## 🆓 完全免费
 
 DeepRant 目前完全免费使用，我们相信游戏交流应该没有门槛。
+
+## 🛠️ 技术栈
+
+- 🖥️ **跨平台框架**：[Tauri](https://tauri.app/) - 使用 Rust 构建的轻量级跨平台框架
+- ⚛️ **前端框架**：
+  - React 18
+  - Vite
+  - TailwindCSS
+  - Framer Motion
+- 🦀 **后端技术**：
+  - Rust
+  - Tauri API
+  - Global Shortcut
+  - Store Plugin
+  - Clipboard Manager
+
+## 👨‍💻 开发指南
+
+### 环境要求
+
+- Node.js 16+
+- Rust 1.70+
+- macOS: Xcode Command Line Tools
+- Windows: Visual Studio C++ 构建工具
+
+### 安装依赖
+
+```bash
+# 安装依赖
+npm install
+
+# 或使用 yarn
+yarn
+```
+
+### 开发命令
+
+```bash
+# 开发模式
+npm run tauri dev
+
+# 清理构建缓存
+npm run clean
+```
+
+### 打包命令
+
+```bash
+# macOS (Intel & Apple Silicon)
+npm run tauri build
+
+# macOS (仅 Apple Silicon)
+npm run build:mac-arm
+
+# Windows
+npm run tauri build
+```
 
 ## 🤝 贡献指南
 
