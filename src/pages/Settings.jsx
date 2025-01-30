@@ -3,6 +3,24 @@ import { Server, Crown, Sparkles, Cube } from '../icons';
 import { useState, useEffect } from 'react';
 import { useStore } from '../components/StoreProvider';
 
+const MODEL_OPTIONS = [
+    {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        modelName: 'deepseek-chat'
+    },
+    {
+        id: 'deepseek-R1',
+        name: 'DeepSeek R1',
+        modelName: 'deepseek-reasoner'
+    },
+    {
+        id: 'stepfun',
+        name: '阶跃星辰',
+        modelName: 'step-2-16k'
+    }
+];
+
 export default function Settings() {
     const { settings, updateSettings } = useStore();
     const [activeModel, setActiveModel] = useState(settings?.model_type || 'deepseek');
@@ -44,40 +62,25 @@ export default function Settings() {
                         模型选择
                     </div>
                     <div className="space-y-3">
-                        <button
-                            onClick={() => handleModelChange('deepseek')}
-                            className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm text-zinc-700 dark:text-zinc-300">DeepSeek</span>
-                                <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md">
-                                    <Cube className="w-3.5 h-3.5 stroke-zinc-500" />
-                                    <span className="text-xs text-zinc-500">deepseek-chat</span>
+                        {MODEL_OPTIONS.map((model) => (
+                            <button
+                                key={model.id}
+                                onClick={() => handleModelChange(model.id)}
+                                className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">{model.name}</span>
+                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md">
+                                        <Cube className="w-3.5 h-3.5 stroke-zinc-500" />
+                                        <span className="text-xs text-zinc-500">{model.modelName}</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className={`w-4 h-4 rounded-full border transition-all ${activeModel === 'deepseek'
-                                ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_1px_2px_0_rgba(255,255,255,0.1)]'
-                                : 'border-zinc-300 dark:border-zinc-600'
-                                }`} />
-                        </button>
-
-                        <button
-                            onClick={() => handleModelChange('stepfun')}
-                            className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-
-                                <span className="text-sm text-zinc-700 dark:text-zinc-300">阶跃星辰</span>
-                                <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md">
-                                    <Cube className="w-3.5 h-3.5 stroke-zinc-500" />
-                                    <span className="text-xs text-zinc-500">step-2</span>
-                                </div>
-                            </div>
-                            <div className={`w-4 h-4 rounded-full border transition-all ${activeModel === 'stepfun'
-                                ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_1px_2px_0_rgba(255,255,255,0.1)]'
-                                : 'border-zinc-300 dark:border-zinc-600'
-                                }`} />
-                        </button>
+                                <div className={`w-4 h-4 rounded-full border transition-all ${activeModel === model.id
+                                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_1px_2px_0_rgba(255,255,255,0.1)]'
+                                    : 'border-zinc-300 dark:border-zinc-600'
+                                    }`} />
+                            </button>
+                        ))}
                     </div>
                 </motion.div>
 

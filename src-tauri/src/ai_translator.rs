@@ -132,6 +132,11 @@ fn get_model_config(settings: &crate::store::AppSettings) -> crate::store::Model
             api_url: "https://api.deepseek.com/v1/chat/completions".to_string(),
             model_name: "deepseek-chat".to_string(),
         },
+        "deepseek-R1" => crate::store::ModelConfig {
+            auth: "sk-dec57e2f5e9d4749b0e43fcf000bdf8a".to_string(),
+            api_url: "https://api.deepseek.com/v1/chat/completions".to_string(),
+            model_name: "deepseek-reasoner".to_string(),
+        },
         "stepfun" => crate::store::ModelConfig {
             auth: "605JU1zU7cGmFp0ibbZlZZ3Qra3lRH7FDtpvICyf2pTrRrUaO6CQgW8p3sQatd5Wh".to_string(),
             api_url: "https://api.stepfun.com/v1/chat/completions".to_string(),
