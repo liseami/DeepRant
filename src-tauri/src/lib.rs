@@ -43,18 +43,28 @@ pub fn run() {
         .setup(|app| {
             // 初始化存储
             println!("Initializing...");
-            initialize_settings(&app.app_handle())?;
-            println!("应用设置初始化完成");
+            let settings_result = initialize_settings(&app.app_handle());
+            match settings_result {
+                Ok(_) => println!("应用设置初始化完成"),
+                Err(e) => println!("应用设置初始化失败: {:?}", e),
+            }
 
             // 初始化所有快捷键
             println!("正在注册全局快捷键...");
-            shortcut::init_shortcuts(&app.app_handle())?;
-            println!("快捷键设置成功");
+            let shortcuts_result = shortcut::init_shortcuts(&app.app_handle());
+            match shortcuts_result {
+                Ok(_) => println!("快捷键设置成功"),
+                Err(e) => println!("快捷键设置失败: {:?}", e),
+            }
 
             // 只在非Windows系统上创建托盘
             #[cfg(not(target_os = "windows"))]
             {
-                tray::create_tray(&app.app_handle())?;
+                let tray_result = tray::create_tray(&app.app_handle());
+                match tray_result {
+                    Ok(_) => println!("托盘创建成功"),
+                    Err(e) => println!("托盘创建失败: {:?}", e),
+                }
             }
             Ok(())
         })
