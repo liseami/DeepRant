@@ -107,29 +107,58 @@ jobs:
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
-      - name: Generate update manifest
-        id: generate_manifest
+      - name: Generate update manifest (Windows)
+        if: matrix.platform == 'windows-latest'
+        id: generate_manifest_windows
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.version }}"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+          $manifest = @{
+            version = $version
+            notes = "自动生成更新包"
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = Get-Content "src-tauri/target/release/bundle/msi/DeepRant_${version}_x64.msi.sig" -Raw
+                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64.msi"
+              }
+            }
+          }
+
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path latest.json -Encoding UTF8
+
+      - name: Generate update manifest (macOS)
+        if: matrix.platform == 'macos-latest'
+        id: generate_manifest_macos
+        shell: bash
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo '{
-            "version": "'$VERSION'",
-            "notes": "自动生成更新包",
-            "platforms": {
-              "darwin-x86_64": {
-                "signature": "$(cat src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
-              },
-              "darwin-aarch64": {
-                "signature": "$(cat src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
-              },
-              "windows-x86_64": {
-                "signature": "$(cat src-tauri/target/release/bundle/msi/DeepRant_'$VERSION'_x64.msi.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_x64.msi"
+
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-aarch64": {
+                  "signature": "'$(cat src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig)'",
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
+                }
               }
-            }
-          }' > latest.json
+            }' > latest.json
+          else
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-x86_64": {
+                  "signature": "'$(cat src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig)'",
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
+                }
+              }
+            }' > latest.json
+          fi
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -138,6 +167,7 @@ jobs:
           files: |
             src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
             src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/${{ matrix.target_dir }}/bundle/msi/DeepRant_*.msi
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -152,6 +182,7 @@ jobs:
           files: |
             src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
             src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/${{ matrix.target_dir }}/bundle/msi/DeepRant_*.msi
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
