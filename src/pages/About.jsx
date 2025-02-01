@@ -5,11 +5,18 @@ import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useStore } from '../components/StoreProvider';
 import { showSuccess, showError } from '../utils/toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function About() {
     const [updateStatus, setUpdateStatus] = useState('idle');
-    const [currentVersion, setCurrentVersion] = useState('1.0.4');
+    const [currentVersion, setCurrentVersion] = useState('');
+
+    useEffect(() => {
+        invoke('get_version').then(version => {
+            setCurrentVersion(version);
+        });
+    }, []);
 
     const checkUpdate = async () => {
         try {
@@ -18,21 +25,31 @@ export default function About() {
 
             if (update) {
                 setUpdateStatus('downloading');
+                let downloaded = 0;
+                let contentLength = 0;
+
                 await update.downloadAndInstall((progress) => {
                     if (progress.event === 'Started') {
-                        showSuccess(`开始下载 ${progress.data.contentLength} 字节`);
+                        contentLength = progress.data.contentLength;
+                        showSuccess(`开始下载更新包 ${(contentLength / 1024 / 1024).toFixed(2)}MB`);
                     } else if (progress.event === 'Progress') {
-                        const percent = (progress.data.chunkLength / progress.data.contentLength * 100).toFixed(1);
+                        downloaded = progress.data.chunkLength;
+                        const percent = ((downloaded / contentLength) * 100).toFixed(1);
                         showSuccess(`下载进度: ${percent}%`, { duration: 1000 });
+                    } else if (progress.event === 'Finished') {
+                        showSuccess('下载完成，准备安装');
                     }
                 });
+
                 setUpdateStatus('installed');
+                showSuccess('更新已完成，即将重启应用');
                 await relaunch();
             } else {
                 showSuccess('当前已是最新版本');
                 setUpdateStatus('idle');
             }
         } catch (error) {
+            console.error('Update error:', error);
             showError(`更新失败: ${error.message}`);
             setUpdateStatus('error');
         }
@@ -51,14 +68,19 @@ export default function About() {
                     <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
                         <AT className="w-4 h-4 stroke-zinc-500" />
                         <span className="text-sm text-zinc-500">版本 {currentVersion}</span>
-                        {updateStatus === 'available' && (
-                            <button
-                                onClick={checkUpdate}
-                                className="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs"
-                            >
-                                立即更新
-                            </button>
-                        )}
+                        <button
+                            onClick={checkUpdate}
+                            disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+                            className={`px-3 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${updateStatus === 'checking' || updateStatus === 'downloading'
+                                ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
+                                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                }`}
+                        >
+                            {updateStatus === 'checking' && '检查更新中...'}
+                            {updateStatus === 'downloading' && '下载更新中...'}
+                            {updateStatus === 'idle' && '检查更新'}
+                            {updateStatus === 'error' && '重试更新'}
+                        </button>
                     </div>
                 </div>
                 <p className="text-zinc-600 dark:text-zinc-400">

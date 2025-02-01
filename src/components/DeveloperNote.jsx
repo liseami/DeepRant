@@ -22,14 +22,28 @@ export default function DeveloperNote() {
             setIsUpdating(true);
             const update = await check();
             if (update) {
+                let downloaded = 0;
+                let contentLength = 0;
+
                 await update.downloadAndInstall((progress) => {
-                    console.log('更新进度:', progress);
+                    if (progress.event === 'Started') {
+                        contentLength = progress.data.contentLength;
+                        showSuccess(`开始下载更新包 ${(contentLength / 1024 / 1024).toFixed(2)}MB`);
+                    } else if (progress.event === 'Progress') {
+                        downloaded = progress.data.chunkLength;
+                        const percent = ((downloaded / contentLength) * 100).toFixed(1);
+                        showSuccess(`下载进度: ${percent}%`, { duration: 1000 });
+                    } else if (progress.event === 'Finished') {
+                        showSuccess('下载完成，准备安装');
+                    }
                 });
+                showSuccess('更新已完成，即将重启应用');
                 await relaunch();
             } else {
                 showSuccess('当前已是最新版本');
             }
         } catch (error) {
+            console.error('Update error:', error);
             showError(`更新失败: ${error.message}`);
         } finally {
             setIsUpdating(false);

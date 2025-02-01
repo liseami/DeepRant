@@ -32,9 +32,11 @@ jobs:
 
       - name: Get version
         id: get_version
+        shell: pwsh
         run: |
-          VERSION=$(cat src-tauri/tauri.conf.json | grep -o '"version": "[^"]*"' | cut -d'"' -f4)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          $json = Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json
+          $version = $json.version
+          echo "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
