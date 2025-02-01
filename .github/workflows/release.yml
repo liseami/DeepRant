@@ -28,16 +28,16 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           cache: 'npm'
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
@@ -109,7 +109,7 @@ jobs:
 
       - name: Download macOS signatures
         if: matrix.platform == 'windows-latest'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-signatures
           path: signatures
@@ -189,7 +189,7 @@ jobs:
 
       - name: Upload macOS signatures (macOS Intel)
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-signatures
           path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.sig
@@ -197,7 +197,7 @@ jobs:
 
       - name: Upload macOS signatures (macOS ARM)
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-signatures
           path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.sig
