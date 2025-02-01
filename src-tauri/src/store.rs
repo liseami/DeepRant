@@ -101,9 +101,9 @@ pub fn initialize_settings(app: &AppHandle) -> Result<(), anyhow::Error> {
         "daily_mode": false,
         "model_type": "deepseek",
         "custom_model": {
-            "auth": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            "api_url": "https://api.deepseek.com/v1/",
-            "model_name": "deepseek-chat"
+            "auth": "",
+            "api_url": "https://api.openai.com/v1/chat/completions",
+            "model_name": "gpt-3.5-turbo"
         },
         "phrases": phrases
     });
