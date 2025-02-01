@@ -137,5 +137,22 @@ jobs:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
             src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
-            src-tauri/target/release/bundle/msi/DeepRant_*.msi
+            src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
             latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 15
+        continue-on-error: true
+
+      - name: Retry Upload if Failed
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          files: |
+            src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
+            src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
+            latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 20
