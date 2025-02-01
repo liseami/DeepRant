@@ -32,7 +32,7 @@ async fn get_settings(app_handle: tauri::AppHandle) -> Result<store::AppSettings
 pub fn run() {
     println!("Starting application...");
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
@@ -68,27 +68,25 @@ pub fn run() {
             update_translator_shortcut,
             log_to_backend,
             get_settings
-        ])
-        // 监听窗口事件
-        .on_window_event(|window, event| match event {
-            // 当用户点击窗口关闭按钮时触发
+        ]);
+
+    // 只在非Windows系统上添加窗口事件监听
+    #[cfg(not(target_os = "windows"))]
+    {
+        builder = builder.on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                // 隐藏窗口而不是真正关闭它
-                // 这样应用程序仍在后台运行,可以通过托盘图标重新打开
                 window.hide().unwrap();
-                // 在 macOS 上将应用从 Dock 栏移除
-                // 这样可以让应用程序在后台运行时不占用 Dock 栏空间
                 #[cfg(target_os = "macos")]
                 let _ = window
                     .app_handle()
                     .set_activation_policy(tauri::ActivationPolicy::Accessory);
-                // 阻止窗口真正关闭
-                // 这样应用程序会继续在后台运行
                 api.prevent_close();
             }
-            // 忽略其他窗口事件
             _ => {}
-        })
+        });
+    }
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
