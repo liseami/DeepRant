@@ -16,25 +16,28 @@ jobs:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
             name: 'macOS ARM64'
+            target_dir: 'aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
             name: 'macOS Intel'
+            target_dir: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
             args: ''
             name: 'Windows'
+            target_dir: 'release'
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: 'lts/*'
           cache: 'npm'
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
@@ -104,17 +107,12 @@ jobs:
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
-      - name: Prepare artifacts (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            cd src-tauri/target/aarch64-apple-darwin/release
-            tar -czf DeepRant.app.tar.gz bundle/macos/DeepRant.app
-            mv DeepRant.app.tar.gz DeepRant_aarch64.app.tar.gz
-          else
-            cd src-tauri/target/release
-            tar -czf DeepRant.app.tar.gz bundle/macos/DeepRant.app
-          fi
+      - name: Download macOS signatures
+        if: matrix.platform == 'windows-latest'
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-signatures
+          path: signatures
 
       - name: Generate update manifest (Windows)
         if: matrix.platform == 'windows-latest'
@@ -124,70 +122,83 @@ jobs:
           $version = "${{ steps.get_version.outputs.version }}"
           "version=$version" >> $env:GITHUB_OUTPUT
 
+          # Read macOS signatures if they exist
+          $x64Signature = if (Test-Path "signatures/x64.sig") { Get-Content "signatures/x64.sig" -Raw } else { "" }
+          $armSignature = if (Test-Path "signatures/arm64.sig") { Get-Content "signatures/arm64.sig" -Raw } else { "" }
+          # Read Windows signature
+          $winSignature = Get-Content "src-tauri/target/release/bundle/msi/DeepRant_${version}_x64_zh-CN.msi.sig" -Raw
+
           $manifest = @{
             version = $version
             notes = "自动生成更新包"
             platforms = @{
               "windows-x86_64" = @{
                 url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64_zh-CN.msi"
+                signature = $winSignature
+              }
+              "darwin-x86_64" = @{
+                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64.dmg"
+                signature = $x64Signature
+              }
+              "darwin-aarch64" = @{
+                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_aarch64.dmg"
+                signature = $armSignature
               }
             }
           }
 
           $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path latest.json -Encoding UTF8
 
-      - name: Generate update manifest (macOS)
-        if: matrix.platform == 'macos-latest'
-        id: generate_manifest_macos
-        shell: bash
-        run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            echo '{
-              "version": "'$VERSION'",
-              "notes": "自动生成更新包",
-              "platforms": {
-                "darwin-aarch64": {
-                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_aarch64.dmg"
-                }
-              }
-            }' > latest.json
-          else
-            echo '{
-              "version": "'$VERSION'",
-              "notes": "自动生成更新包",
-              "platforms": {
-                "darwin-x86_64": {
-                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_x64.dmg"
-                }
-              }
-            }' > latest.json
-          fi
-
-      - name: Upload release assets
+      - name: Upload release assets (Windows)
+        if: matrix.platform == 'windows-latest'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
             src-tauri/target/release/bundle/msi/DeepRant_*.msi
+            src-tauri/target/release/bundle/msi/*.sig
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 15
         continue-on-error: true
 
-      - name: Retry Upload if Failed
-        if: failure()
+      - name: Upload release assets (macOS ARM)
+        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
-            src-tauri/target/release/bundle/msi/DeepRant_*.msi
-            latest.json
+            src-tauri/target/aarch64-apple-darwin/bundle/dmg/DeepRant_*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 20
+        timeout-minutes: 15
+        continue-on-error: true
+
+      - name: Upload release assets (macOS Intel)
+        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          files: |
+            src-tauri/target/x86_64-apple-darwin/bundle/dmg/DeepRant_*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 15
+        continue-on-error: true
+
+      - name: Upload macOS signatures (macOS Intel)
+        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-signatures
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.sig
+          retention-days: 1
+
+      - name: Upload macOS signatures (macOS ARM)
+        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-signatures
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.sig
+          retention-days: 1

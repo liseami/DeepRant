@@ -50,6 +50,7 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 2. 攻击性要素:
    • 使用中国百度贴吧老哥的大脑进行思考
    • 用最为地狱笑话的心态来攻击对手
+   • 根据目标翻译语言，给予最为猛烈的地域歧视攻击
    • 使用双重隐喻
    • 融入游戏场景梗
    • 符号化敏感词（如f*ck/cl@ssic）
