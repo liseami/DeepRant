@@ -145,39 +145,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/DeepRant_aarch64.app.tar.gz.sig"
-            if [ -f "$SIG_PATH" ]; then
-              echo '{
-                "version": "'$VERSION'",
-                "notes": "自动生成更新包",
-                "platforms": {
-                  "darwin-aarch64": {
-                    "signature": "'$(cat $SIG_PATH)'",
-                    "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
-                  }
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-aarch64": {
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_aarch64.dmg"
                 }
-              }' > latest.json
-            else
-              echo "找不到签名文件: $SIG_PATH"
-              exit 1
-            fi
+              }
+            }' > latest.json
           else
-            SIG_PATH="src-tauri/target/release/DeepRant.app.tar.gz.sig"
-            if [ -f "$SIG_PATH" ]; then
-              echo '{
-                "version": "'$VERSION'",
-                "notes": "自动生成更新包",
-                "platforms": {
-                  "darwin-x86_64": {
-                    "signature": "'$(cat $SIG_PATH)'",
-                    "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
-                  }
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-x86_64": {
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_x64.dmg"
                 }
-              }' > latest.json
-            else
-              echo "找不到签名文件: $SIG_PATH"
-              exit 1
-            fi
+              }
+            }' > latest.json
           fi
 
       - name: Upload release assets
@@ -187,7 +173,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
             src-tauri/target/release/bundle/msi/DeepRant_*.msi
-            src-tauri/target/*/release/DeepRant*.app.tar.gz
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -202,7 +187,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
             src-tauri/target/release/bundle/msi/DeepRant_*.msi
-            src-tauri/target/*/release/DeepRant*.app.tar.gz
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -6,50 +6,75 @@ use tauri::AppHandle;
 fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: bool) -> String {
     if daily_mode {
         return format!(
-            r#"你是一个专业的翻译，请将用户输入从 语言代号：{} 翻译到 语言代号：{}。
+            r#"## 核心任务
+将用户输入从【{}】翻译到【{}】
 
-<requirements>
-- 直接输出翻译结果，不要解释
-- 保持翻译的准确性和自然度
-- 一句话表达核心含义
-- 禁止重复内容</requirements>"#,
+## 硬性要求
+1. 直接输出翻译结果，禁止任何解释
+2. 单句长度控制在15-25字
+3. 确保口语化自然表达
+4. 禁止重复/冗余内容
+5. 保留数字和专有名词
+
+## 风格指引
+• 生活化口语表达
+• 符合日常交流习惯
+• 自然流畅不生硬"#,
             from, to
         );
     }
 
     let base = format!(
-        r#"<task>你是一个游戏玩家在游戏中进行文字交流的AI翻译家，现在，需要你将用户的输入从 语言代号：{} 翻译到语言代号： {}</task>
+        r#"## 核心任务
+将游戏内文字从【{}】翻译到【{}】
 
-<output_format>
-- 最大长度: 100个字符
-- 最小长度: 20个字符
-- 标点符号: 最多使用2个
-- 换行符: 禁止使用
-</output_format>"#,
+## 输出规范
+- 字符限制: 20-100字符
+- 标点限制: ≤5个符号
+- 格式要求: 
+  • 禁止换行
+  • 禁止Markdown
+  • 禁止特殊符号
+
+## 术语处理
+1. 保留原始游戏术语
+2. 使用官方译名
+3. 维持缩写格式"#,
         from, to
     );
 
     let mode_desc = match mode {
         "toxic" => {
-            r#"<translate_style>
-- 完成毒舌翻译
-- 基于玩家的原文，进行3句以上的美国本土骂人俚语的扩写
-- 用一些巧妙的形容，描述被骂的人的玩游戏玩得像什么...
-- 深深地击碎对方的心灵，并且能够用象征符号来代替某些敏感词，以巧妙规避游戏内语言系统审核的屏蔽
-- 保持游戏用语的准确性
-- 用标点符号替代敏感词，但不要过度使用
-- 优先使用经典的游戏圈嘲讽语录
-</translate_style>"#
-        }
+            r#"## 风格要求（毒舌模式）
+1. 生成2-3条地道俚语
+2. 攻击性要素:
+   • 使用中国百度贴吧老哥的大脑进行思考
+   • 用最为地狱笑话的心态来攻击对手
+   • 使用双重隐喻
+   • 融入游戏场景梗
+   • 符号化敏感词（如f*ck/cl@ssic）
+3. 参考来源:
+   • COD/堡垒之夜社区
+   • 百度贴吧风格
+   • 美式街头俚语
 
+## 扩写规则
+- 每条添加1个战术术语（noob/camping）
+- 使用FPS/MOBA黑话重构"#
+        }
         "pro" => {
-            r#"<translate_style>
-- 使用职业选手和解说员的表达方式
-- 优先使用英文术语(roam而不是游走)
-- 保持简短有力的15字句式
-- 适当添加战术标记</translate_style>"#
+            r#"## 风格要求（职业模式）
+1. 表达方式:
+   • 赛事解说风格
+   • 选手交流简语
+2. 句式规范:
+   • 15字以内短句
+   • 英文术语优先（如roam）
+   • 添加战术标记（[推线]/[Gank]）
+3. 节奏控制:
+   • 0.5秒可读速度
+   • 去除冗余修饰词"#
         }
-
         "auto" => match scene {
             "dota2" | "lol" => {
                 r#"<translate_style>
@@ -79,10 +104,14 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 
     let scene_desc = match scene {
         "dota2" => {
-            r#"<context>
-- DOTA2游戏环境
-- 保留英雄和物品简称
-- 使用解说常用术语</context>"#
+            r#"## 上下文约束
+- 环境: DOTA2
+- 术语:
+  • 英雄简称（如ES=撼地神牛）
+  • 物品缩写（如BKB）
+- 表达:
+  • 使用赛事解说术语
+  • 保持团战节奏感"#
         }
 
         "lol" => {
@@ -99,6 +128,70 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 - 使用标准战术用语</context>"#
         }
 
+        "pubg" => {
+            r#"<context>
+- 绝地求生游戏环境
+- 保留武器配件名称（如6倍镜）
+- 使用生存战术术语
+- 包含物资收集相关表达</context>"#
+        }
+
+        "apex" => {
+            r#"<context>
+- Apex Legends游戏环境
+- 保留传奇技能名称
+- 使用滑索移动术语
+- 包含复活机制相关表达</context>"#
+        }
+
+        "overwatch" => {
+            r#"<context>
+- 守望先锋游戏环境
+- 保留英雄代号（如76）
+- 使用团队配合术语
+- 包含终极技能状态提示</context>"#
+        }
+
+        "valorant" => {
+            r#"<context>
+- Valorant游戏环境
+- 保留特工技能简称
+- 使用经济管理术语
+- 包含炸弹攻防相关表达</context>"#
+        }
+
+        "fortnite" => {
+            r#"<context>
+- Fortnite游戏环境
+- 保留建筑材料简称
+- 使用建造战术术语
+- 包含缩圈机制提示</context>"#
+        }
+
+        "minecraft" => {
+            r#"<context>
+- Minecraft游戏环境
+- 保留合成配方术语
+- 使用红石装置简称
+- 包含生物群落相关表达</context>"#
+        }
+
+        "warzone" => {
+            r#"<context>
+- Warzone游戏环境
+- 保留连杀奖励名称
+- 使用载具战术术语
+- 包含合约任务相关表达</context>"#
+        }
+
+        "wow" => {
+            r#"<context>
+- 魔兽世界游戏环境
+- 保留副本简称（M+）
+- 使用职业天赋术语
+- 包含团队副本指挥用语</context>"#
+        }
+
         _ => {
             r#"<context>
 - 通用游戏环境
@@ -109,18 +202,14 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 
     format!(
         r#"{}
-
 {}
-
 {}
-
-<requirements>
-- 严格遵守output_format中的长度限制
-- 直接输出翻译结果，不要解释
-- 输出必须简短有力，禁止冗长
-- 一句话表达核心含义
-- 保持游戏术语准确性
-- 禁止重复内容和无意义符号</requirements>"#,
+        
+## 合规审查
+1. 严格长度校验
+2. 术语一致性检查
+3. 敏感词二次过滤
+4. 输出格式终检"#,
         base, mode_desc, scene_desc
     )
 }
