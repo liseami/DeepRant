@@ -30,6 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(cat src-tauri/tauri.conf.json | grep -o '"version": "[^"]*"' | cut -d'"' -f4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -87,8 +93,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'DeepRant v__VERSION__'
+          tagName: v${{ steps.get_version.outputs.version }}
+          releaseName: 'DeepRant v${{ steps.get_version.outputs.version }}'
           releaseBody: |
             请查看附件下载对应系统的安装包：
             - Windows: .msi 安装包
@@ -100,23 +106,25 @@ jobs:
           tauriScript: 'npm run tauri'
 
       - name: Generate update manifest
+        id: generate_manifest
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.get_version.outputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo '{
-            "version": "$VERSION",
+            "version": "'$VERSION'",
             "notes": "自动生成更新包",
             "platforms": {
               "darwin-x86_64": {
                 "signature": "$(cat src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v${VERSION}/DeepRant.app.tar.gz"
+                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
               },
               "darwin-aarch64": {
                 "signature": "$(cat src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v${VERSION}/DeepRant_aarch64.app.tar.gz"
+                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
               },
               "windows-x86_64": {
-                "signature": "$(cat src-tauri/target/release/bundle/msi/DeepRant_${VERSION}_x64.msi.sig)",
-                "url": "https://github.com/liseami/DeepRant/releases/download/v${VERSION}/DeepRant_${VERSION}_x64.msi"
+                "signature": "$(cat src-tauri/target/release/bundle/msi/DeepRant_'$VERSION'_x64.msi.sig)",
+                "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_x64.msi"
               }
             }
           }' > latest.json
@@ -124,6 +132,7 @@ jobs:
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.get_version.outputs.version }}
           files: |
             src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
             src-tauri/target/release/bundle/msi/DeepRant_*.msi
