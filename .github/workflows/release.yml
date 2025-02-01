@@ -122,27 +122,13 @@ jobs:
           $version = "${{ steps.get_version.outputs.version }}"
           "version=$version" >> $env:GITHUB_OUTPUT
 
-          # Read macOS signatures if they exist
-          $x64Signature = if (Test-Path "signatures/x64.sig") { Get-Content "signatures/x64.sig" -Raw } else { "" }
-          $armSignature = if (Test-Path "signatures/arm64.sig") { Get-Content "signatures/arm64.sig" -Raw } else { "" }
-          # Read Windows signature
-          $winSignature = Get-Content "src-tauri/target/release/bundle/msi/DeepRant_${version}_x64_zh-CN.msi.sig" -Raw
-
           $manifest = @{
             version = $version
             notes = "自动生成更新包"
             platforms = @{
               "windows-x86_64" = @{
                 url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64_zh-CN.msi"
-                signature = $winSignature
-              }
-              "darwin-x86_64" = @{
-                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64.dmg"
-                signature = $x64Signature
-              }
-              "darwin-aarch64" = @{
-                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_aarch64.dmg"
-                signature = $armSignature
+                signature = Get-Content "src-tauri/target/release/bundle/msi/DeepRant_${version}_x64_zh-CN.msi.sig" -Raw
               }
             }
           }
@@ -163,13 +149,49 @@ jobs:
         timeout-minutes: 15
         continue-on-error: true
 
+      - name: Generate update manifest (macOS)
+        if: matrix.platform == 'macos-latest'
+        id: generate_manifest_macos
+        shell: bash
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-aarch64": {
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_aarch64.dmg",
+                  "signature": "'$(cat $SIG_PATH)'"
+                }
+              }
+            }' > latest.json
+          else
+            SIG_PATH="src-tauri/target/x86_64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            echo '{
+              "version": "'$VERSION'",
+              "notes": "自动生成更新包",
+              "platforms": {
+                "darwin-x86_64": {
+                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_'$VERSION'_x64.dmg",
+                  "signature": "'$(cat $SIG_PATH)'"
+                }
+              }
+            }' > latest.json
+          fi
+
       - name: Upload release assets (macOS ARM)
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/aarch64-apple-darwin/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.sig
+            latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 15
@@ -181,7 +203,9 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/x86_64-apple-darwin/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.sig
+            latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 15
