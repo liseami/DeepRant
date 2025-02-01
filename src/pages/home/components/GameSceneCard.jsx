@@ -14,7 +14,8 @@ const GAMES = {
     valorant: 'Valorant',
     fortnite: 'Fortnite',
     minecraft: 'Minecraft',
-    warzone: 'Warzone'
+    warzone: 'Warzone',
+    wow: '魔兽世界'
 };
 
 export default function GameSceneCard() {

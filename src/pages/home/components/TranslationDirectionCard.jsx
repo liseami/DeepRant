@@ -10,6 +10,14 @@ const LANGUAGES = {
         name: '中文',
         code: 'CN'
     },
+    'en-SEA': {
+        name: '东南亚英语',
+        code: 'SG'  // 使用新加坡国旗代码
+    },
+    ko: {
+        name: '韩文',
+        code: 'KR'
+    },
     en: {
         name: '英文',
         code: 'US'
@@ -26,6 +34,14 @@ const LANGUAGES = {
         name: '西班牙文',
         code: 'ES'
     },
+    ja: {
+        name: '日文',
+        code: 'JP'
+    },
+    de: {
+        name: '德文',
+        code: 'DE'
+    }
 };
 
 export default function TranslationDirectionCard() {

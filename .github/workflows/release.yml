@@ -30,14 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version
-        id: get_version
-        shell: pwsh
-        run: |
-          $json = Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json
-          $version = $json.version
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -82,6 +74,14 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
+      - name: Get version
+        id: get_version
+        shell: pwsh
+        run: |
+          $json = Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json
+          $version = $json.version
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
@@ -120,8 +120,7 @@ jobs:
             notes = "自动生成更新包"
             platforms = @{
               "windows-x86_64" = @{
-                signature = Get-Content "src-tauri/target/release/bundle/msi/DeepRant_${version}_x64.msi.sig" -Raw
-                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64.msi"
+                url = "https://github.com/liseami/DeepRant/releases/download/v${version}/DeepRant_${version}_x64_zh-CN.msi"
               }
             }
           }
@@ -137,27 +136,39 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            echo '{
-              "version": "'$VERSION'",
-              "notes": "自动生成更新包",
-              "platforms": {
-                "darwin-aarch64": {
-                  "signature": "'$(cat src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig)'",
-                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
+            SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            if [ -f "$SIG_PATH" ]; then
+              echo '{
+                "version": "'$VERSION'",
+                "notes": "自动生成更新包",
+                "platforms": {
+                  "darwin-aarch64": {
+                    "signature": "'$(cat $SIG_PATH)'",
+                    "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant_aarch64.app.tar.gz"
+                  }
                 }
-              }
-            }' > latest.json
+              }' > latest.json
+            else
+              echo "找不到签名文件: $SIG_PATH"
+              exit 1
+            fi
           else
-            echo '{
-              "version": "'$VERSION'",
-              "notes": "自动生成更新包",
-              "platforms": {
-                "darwin-x86_64": {
-                  "signature": "'$(cat src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig)'",
-                  "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
+            SIG_PATH="src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            if [ -f "$SIG_PATH" ]; then
+              echo '{
+                "version": "'$VERSION'",
+                "notes": "自动生成更新包",
+                "platforms": {
+                  "darwin-x86_64": {
+                    "signature": "'$(cat $SIG_PATH)'",
+                    "url": "https://github.com/liseami/DeepRant/releases/download/v'$VERSION'/DeepRant.app.tar.gz"
+                  }
                 }
-              }
-            }' > latest.json
+              }' > latest.json
+            else
+              echo "找不到签名文件: $SIG_PATH"
+              exit 1
+            fi
           fi
 
       - name: Upload release assets
