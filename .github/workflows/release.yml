@@ -91,7 +91,7 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
@@ -111,50 +111,22 @@ jobs:
         if: matrix.platform == 'macos-latest'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          echo "Current args: ${{ matrix.args }}"
-          echo "Current version: ${{ steps.get_version.outputs.version }}"
-
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg"
-            echo "Notarizing ARM DMG at: $DMG_PATH"
-            if [ ! -f "$DMG_PATH" ]; then
-              echo "Error: ARM DMG file not found at $DMG_PATH"
-              exit 1
-            fi
-            xcrun notarytool submit "$DMG_PATH" \
+            xcrun notarytool submit "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg" \
               --apple-id "$APPLE_ID" \
-              --password "$APPLE_PASSWORD" \
+              --password "$APPLE_ID_PASSWORD" \
               --team-id "$APPLE_TEAM_ID" \
               --wait
           else
-            DMG_PATH="src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg"
-            echo "Notarizing Intel DMG at: $DMG_PATH"
-            if [ ! -f "$DMG_PATH" ]; then
-              echo "Error: Intel DMG file not found at $DMG_PATH"
-              exit 1
-            fi
-            xcrun notarytool submit "$DMG_PATH" \
+            xcrun notarytool submit "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg" \
               --apple-id "$APPLE_ID" \
-              --password "$APPLE_PASSWORD" \
+              --password "$APPLE_ID_PASSWORD" \
               --team-id "$APPLE_TEAM_ID" \
               --wait
           fi
-
-      - name: Verify Notarization Status (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg"
-          else
-            DMG_PATH="src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg"
-          fi
-
-          echo "Verifying notarization for: $DMG_PATH"
-          xcrun stapler validate "$DMG_PATH"
-          spctl --assess -vv --type install "$DMG_PATH"
 
       - name: Staple DMG (macOS)
         if: matrix.platform == 'macos-latest'
