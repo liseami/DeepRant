@@ -107,13 +107,6 @@ jobs:
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
-      - name: Download macOS signatures
-        if: matrix.platform == 'windows-latest'
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-signatures
-          path: signatures
-
       - name: Generate update manifest (Windows)
         if: matrix.platform == 'windows-latest'
         id: generate_manifest_windows
@@ -210,19 +203,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 15
         continue-on-error: true
-
-      - name: Upload macOS signatures (macOS Intel)
-        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-signatures
-          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.sig
-          retention-days: 1
-
-      - name: Upload macOS signatures (macOS ARM)
-        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-signatures
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.sig
-          retention-days: 1
