@@ -25,3 +25,4 @@ dist-ssr
 
 *.env
 *.p8
+*.p12

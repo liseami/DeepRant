@@ -142,6 +142,7 @@ fn get_model_config(settings: &crate::store::AppSettings) -> crate::store::Model
             api_url: "https://api.stepfun.com/v1/chat/completions".to_string(),
             model_name: "step-2-16k".to_string(),
         },
+        "custom" => settings.custom_model.clone(),
         _ => settings.custom_model.clone(),
     }
 }

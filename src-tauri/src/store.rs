@@ -62,6 +62,12 @@ pub struct AppSettings {
 pub fn initialize_settings(app: &AppHandle) -> Result<(), anyhow::Error> {
     let store = app.store(STORE_FILENAME)?;
     
+    // 检查settings是否已存在
+    if store.get("settings").is_some() {
+        store.close_resource();
+        return Ok(());
+    }
+    
     // 创建默认快捷键配置
     let trans_hotkey = HotkeyConfig::new_platform_specific("KeyT");
     
@@ -95,9 +101,9 @@ pub fn initialize_settings(app: &AppHandle) -> Result<(), anyhow::Error> {
         "daily_mode": false,
         "model_type": "deepseek",
         "custom_model": {
-            "auth": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            "api_url": "https://api.deepseek.com/v1/",
-            "model_name": "deepseek-chat"
+            "auth": "",
+            "api_url": "https://api.openai.com/v1/chat/completions",
+            "model_name": "gpt-3.5-turbo"
         },
         "phrases": phrases
     });
