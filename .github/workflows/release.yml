@@ -107,6 +107,36 @@ jobs:
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
+      - name: Notarize DMG (macOS)
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            xcrun notarytool submit "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+          else
+            xcrun notarytool submit "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+          fi
+
+      - name: Staple DMG (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            xcrun stapler staple "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg"
+          else
+            xcrun stapler staple "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg"
+          fi
+
       - name: Generate update manifest (Windows)
         if: matrix.platform == 'windows-latest'
         id: generate_manifest_windows
@@ -134,8 +164,8 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/release/bundle/msi/DeepRant_*.msi
-            src-tauri/target/release/bundle/msi/*.sig
+            src-tauri/target/release/bundle/msi/DeepRant_*_zh-CN.msi
+            src-tauri/target/release/bundle/msi/DeepRant_*_zh-CN.msi.sig
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
