@@ -11,7 +11,7 @@ export default function Layout({ children, activeItem, setActiveItem }) {
                     toastOptions={{
                         className: 'dark:bg-zinc-800 dark:text-white',
                         style: {
-                            borderRadius: '10px',
+                            borderRadius: '12px',
                             background: '#fff',
                             color: '#363636',
                         },
