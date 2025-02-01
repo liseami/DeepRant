@@ -120,6 +120,12 @@ export default function Settings() {
                                         <Cube className="w-3.5 h-3.5 stroke-zinc-500" />
                                         <span className="text-xs text-zinc-500">{model.modelName}</span>
                                     </div>
+                                    {model.id.includes('deepseek') && (
+                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                                            <Sparkles className="w-3.5 h-3.5 stroke-blue-500" />
+                                            <span className="text-xs text-blue-500">硅基流动</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className={`w-4 h-4 rounded-full border transition-all ${activeModel === model.id
                                     ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_1px_2px_0_rgba(255,255,255,0.1)]'

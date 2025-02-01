@@ -1,8 +1,43 @@
 import { motion } from 'framer-motion';
 import { GamingPad, Globe, Translate, Github, AT } from '../icons';
 import DeveloperNote from '../components/DeveloperNote';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { useStore } from '../components/StoreProvider';
+import { showSuccess, showError } from '../utils/toast';
+import { useState } from 'react';
 
 export default function About() {
+    const [updateStatus, setUpdateStatus] = useState('idle');
+    const [currentVersion, setCurrentVersion] = useState('1.0.4');
+
+    const checkUpdate = async () => {
+        try {
+            setUpdateStatus('checking');
+            const update = await check();
+
+            if (update) {
+                setUpdateStatus('downloading');
+                await update.downloadAndInstall((progress) => {
+                    if (progress.event === 'Started') {
+                        showSuccess(`开始下载 ${progress.data.contentLength} 字节`);
+                    } else if (progress.event === 'Progress') {
+                        const percent = (progress.data.chunkLength / progress.data.contentLength * 100).toFixed(1);
+                        showSuccess(`下载进度: ${percent}%`, { duration: 1000 });
+                    }
+                });
+                setUpdateStatus('installed');
+                await relaunch();
+            } else {
+                showSuccess('当前已是最新版本');
+                setUpdateStatus('idle');
+            }
+        } catch (error) {
+            showError(`更新失败: ${error.message}`);
+            setUpdateStatus('error');
+        }
+    };
+
     return (
         <div className="h-full flex flex-col gap-6">
             {/* 头部介绍区域 */}
@@ -15,7 +50,15 @@ export default function About() {
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">关于 DeepRant</h1>
                     <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
                         <AT className="w-4 h-4 stroke-zinc-500" />
-                        <span className="text-sm text-zinc-500">版本 1.0.0</span>
+                        <span className="text-sm text-zinc-500">版本 {currentVersion}</span>
+                        {updateStatus === 'available' && (
+                            <button
+                                onClick={checkUpdate}
+                                className="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs"
+                            >
+                                立即更新
+                            </button>
+                        )}
                     </div>
                 </div>
                 <p className="text-zinc-600 dark:text-zinc-400">

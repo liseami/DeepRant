@@ -128,14 +128,14 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 fn get_model_config(settings: &crate::store::AppSettings) -> crate::store::ModelConfig {
     match settings.model_type.as_str() {
         "deepseek" => crate::store::ModelConfig {
-            auth: "sk-dec57e2f5e9d4749b0e43fcf000bdf8a".to_string(),
-            api_url: "https://api.deepseek.com/v1/chat/completions".to_string(),
-            model_name: "deepseek-chat".to_string(),
+            auth: "sk-jleighwqdtyssxeycgmwxqrhbofpsbkhtobofxhbeyebupyh".to_string(),
+            api_url: "https://api.siliconflow.cn/v1/chat/completions".to_string(),
+            model_name: "deepseek-ai/DeepSeek-V3".to_string(),
         },
         "deepseek-R1" => crate::store::ModelConfig {
-            auth: "sk-dec57e2f5e9d4749b0e43fcf000bdf8a".to_string(),
-            api_url: "https://api.deepseek.com/v1/chat/completions".to_string(),
-            model_name: "deepseek-reasoner".to_string(),
+            auth: "sk-jleighwqdtyssxeycgmwxqrhbofpsbkhtobofxhbeyebupyh".to_string(),
+            api_url: "https://api.siliconflow.cn/v1/chat/completions".to_string(),
+            model_name: "deepseek-ai/DeepSeek-R1".to_string(),
         },
         "stepfun" => crate::store::ModelConfig {
             auth: "605JU1zU7cGmFp0ibbZlZZ3Qra3lRH7FDtpvICyf2pTrRrUaO6CQgW8p3sQatd5Wh".to_string(),
@@ -173,6 +173,12 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
 
     let client = Client::new();
 
+    let max_tokens = if settings.model_type == "deepseek-R1" {
+        800
+    } else {
+        300
+    };
+
     let request_body = json!({
         "model": model_config.model_name,
         "messages": [
@@ -185,7 +191,7 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
                 "content": original
             }
         ],
-        "max_tokens": 300,
+        "max_tokens": max_tokens,
         "temperature": 0.9,
         "top_p": 0.7,
         "n": 1,
@@ -237,7 +243,15 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
         .and_then(|message| message.get("content"))
         .and_then(|content| content.as_str())
     {
-        Some(text) => text.trim().to_string(),
+        Some(text) => {
+            let text = text.trim();
+            // 如果找到</think>标签，只保留其后内容
+            if let Some(end_pos) = text.find("</think>") {
+                text[(end_pos + 8)..].trim().to_string()
+            } else {
+                text.to_string()
+            }
+        }
         None => {
             println!("无法从响应中提取翻译结果: {:?}", response);
             return Ok("[错误] 服务器返回的数据格式异常".to_string());

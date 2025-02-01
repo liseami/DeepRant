@@ -12,6 +12,11 @@ fn log_to_backend(message: String) {
 }
 
 #[tauri::command]
+fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -33,6 +38,7 @@ pub fn run() {
     println!("Starting application...");
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_shell::init())
@@ -45,29 +51,30 @@ pub fn run() {
             println!("Initializing...");
             match initialize_settings(&app.app_handle()) {
                 Ok(_) => println!("应用设置初始化完成"),
-                Err(e) => eprintln!("初始化设置失败: {}", e)
+                Err(e) => eprintln!("初始化设置失败: {}", e),
             }
 
             // 初始化所有快捷键
             println!("正在注册全局快捷键...");
             match shortcut::init_shortcuts(&app.app_handle()) {
                 Ok(_) => println!("快捷键设置成功"),
-                Err(e) => eprintln!("注册全局快捷键失败: {}", e)
+                Err(e) => eprintln!("注册全局快捷键失败: {}", e),
             }
 
             // 创建AI模型托盘
             match tray::create_tray(&app.app_handle()) {
                 Ok(_) => println!("托盘创建成功"),
-                Err(e) => eprintln!("创建托盘失败: {}", e)
+                Err(e) => eprintln!("创建托盘失败: {}", e),
             }
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             greet,
             update_translator_shortcut,
             log_to_backend,
-            get_settings
+            get_settings,
+            get_version
         ]);
 
     // 只在非Windows系统上添加窗口事件监听

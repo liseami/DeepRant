@@ -61,16 +61,16 @@ pub struct AppSettings {
 // 初始化默认设置
 pub fn initialize_settings(app: &AppHandle) -> Result<(), anyhow::Error> {
     let store = app.store(STORE_FILENAME)?;
-    
+
     // 检查settings是否已存在
     if store.get("settings").is_some() {
         store.close_resource();
         return Ok(());
     }
-    
+
     // 创建默认快捷键配置
     let trans_hotkey = HotkeyConfig::new_platform_specific("KeyT");
-    
+
     // 创建默认常用语配置
     let phrases: Vec<Phrase> = (1..=8).map(|id| {
         let phrase = match id {
@@ -132,13 +132,13 @@ pub fn update_settings_field<T: serde::Serialize>(
 ) -> Result<T, anyhow::Error> {
     let store = app.store(STORE_FILENAME)?;
     let mut settings = get_settings(app)?;
-    
+
     // 更新字段
     let result = field_updater(&mut settings);
-    
+
     // 保存更新后的设置
     store.set("settings", json!(settings));
     store.save()?;
-    
+
     Ok(result)
 }
