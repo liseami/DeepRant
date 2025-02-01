@@ -43,19 +43,24 @@ pub fn run() {
         .setup(|app| {
             // 初始化存储
             println!("Initializing...");
-            initialize_settings(&app.app_handle())?;
-            println!("应用设置初始化完成");
+            match initialize_settings(&app.app_handle()) {
+                Ok(_) => println!("应用设置初始化完成"),
+                Err(e) => eprintln!("初始化设置失败: {}", e)
+            }
 
             // 初始化所有快捷键
             println!("正在注册全局快捷键...");
-            shortcut::init_shortcuts(&app.app_handle())?;
-            println!("快捷键设置成功");
-
-            // 只在非Windows系统上创建托盘
-            #[cfg(not(target_os = "windows"))]
-            {
-                tray::create_tray(&app.app_handle())?;
+            match shortcut::init_shortcuts(&app.app_handle()) {
+                Ok(_) => println!("快捷键设置成功"),
+                Err(e) => eprintln!("注册全局快捷键失败: {}", e)
             }
+
+            // 创建AI模型托盘
+            match tray::create_tray(&app.app_handle()) {
+                Ok(_) => println!("托盘创建成功"),
+                Err(e) => eprintln!("创建托盘失败: {}", e)
+            }
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
