@@ -12,9 +12,13 @@ export default function DeveloperNote() {
     const [isUpdating, setIsUpdating] = useState(false);
 
     useEffect(() => {
-        invoke('get_version').then(version => {
-            setCurrentVersion(version);
-        });
+        invoke('get_version')
+            .then(version => {
+                setCurrentVersion(version);
+            })
+            .catch(error => {
+                console.error('获取版本号失败:', error);
+            });
     }, []);
 
     const handleUpdate = async () => {

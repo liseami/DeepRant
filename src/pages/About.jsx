@@ -13,9 +13,13 @@ export default function About() {
     const [currentVersion, setCurrentVersion] = useState('');
 
     useEffect(() => {
-        invoke('get_version').then(version => {
-            setCurrentVersion(version);
-        });
+        invoke('get_version')
+            .then(version => {
+                setCurrentVersion(version);
+            })
+            .catch(error => {
+                console.error('获取版本号失败:', error);
+            });
     }, []);
 
     const checkUpdate = async () => {

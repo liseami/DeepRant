@@ -1,9 +1,12 @@
 [package]
 name = "DeepRant"
-version = "0.1.0"
+version = "1.0.6"
 description = "A Tauri App"
-authors = ["liseami"]
+authors = ["you"]
+license = ""
+repository = ""
 edition = "2021"
+rust-version = "1.77.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

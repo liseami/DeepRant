@@ -12,8 +12,8 @@ fn log_to_backend(message: String) {
 }
 
 #[tauri::command]
-fn get_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+fn get_version(app_handle: tauri::AppHandle) -> String {
+    app_handle.package_info().version.to_string()
 }
 
 #[tauri::command]
