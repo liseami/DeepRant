@@ -1,14 +1,12 @@
 // 导入所需的 Tauri 相关模块
 use crate::shell_helper::{send_phrase, trans_and_replace_text};
 use crate::store::{get_settings, update_settings_field, HotkeyConfig};
-use serde_json::json;
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{
     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent, ShortcutState,
 };
-use tauri_plugin_store::StoreExt;
 
 /// 从字符串转换为修饰键
 fn parse_modifiers(modifiers: &[String]) -> Modifiers {
@@ -199,7 +197,7 @@ pub fn update_translator_shortcut(
     let (modifiers, key) = if keys.is_empty() {
         (Vec::new(), String::new())
     } else {
-        let mut mods: Vec<String> = keys[..keys.len() - 1]
+        let mods: Vec<String> = keys[..keys.len() - 1]
             .iter()
             .map(|k| k.replace("Left", "").replace("Right", ""))
             .collect();

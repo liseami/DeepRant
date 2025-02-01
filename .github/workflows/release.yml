@@ -16,15 +16,12 @@ jobs:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
             name: 'macOS ARM64'
-            target_dir: 'aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
             name: 'macOS Intel'
-            target_dir: 'release'
           - platform: 'windows-latest'
             args: ''
             name: 'Windows'
-            target_dir: 'release'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -107,6 +104,18 @@ jobs:
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
+      - name: Prepare artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            cd src-tauri/target/aarch64-apple-darwin/release
+            tar -czf DeepRant.app.tar.gz bundle/macos/DeepRant.app
+            mv DeepRant.app.tar.gz DeepRant_aarch64.app.tar.gz
+          else
+            cd src-tauri/target/release
+            tar -czf DeepRant.app.tar.gz bundle/macos/DeepRant.app
+          fi
+
       - name: Generate update manifest (Windows)
         if: matrix.platform == 'windows-latest'
         id: generate_manifest_windows
@@ -136,7 +145,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/DeepRant_aarch64.app.tar.gz.sig"
             if [ -f "$SIG_PATH" ]; then
               echo '{
                 "version": "'$VERSION'",
@@ -153,7 +162,7 @@ jobs:
               exit 1
             fi
           else
-            SIG_PATH="src-tauri/target/release/bundle/macos/DeepRant.app.tar.gz.sig"
+            SIG_PATH="src-tauri/target/release/DeepRant.app.tar.gz.sig"
             if [ -f "$SIG_PATH" ]; then
               echo '{
                 "version": "'$VERSION'",
@@ -176,9 +185,9 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
-            src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
-            src-tauri/target/${{ matrix.target_dir }}/bundle/msi/DeepRant_*.msi
+            src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/release/bundle/msi/DeepRant_*.msi
+            src-tauri/target/*/release/DeepRant*.app.tar.gz
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -191,9 +200,9 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
-            src-tauri/target/${{ matrix.target_dir }}/bundle/macos/DeepRant.app.tar.gz
-            src-tauri/target/${{ matrix.target_dir }}/bundle/dmg/DeepRant_*.dmg
-            src-tauri/target/${{ matrix.target_dir }}/bundle/msi/DeepRant_*.msi
+            src-tauri/target/release/bundle/dmg/DeepRant_*.dmg
+            src-tauri/target/release/bundle/msi/DeepRant_*.msi
+            src-tauri/target/*/release/DeepRant*.app.tar.gz
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
