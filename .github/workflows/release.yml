@@ -6,7 +6,42 @@ on:
       - release
 
 jobs:
-  release:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        shell: pwsh
+        run: |
+          $json = Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json
+          $version = $json.version
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: 'DeepRant v${{ steps.get_version.outputs.version }}'
+          body: |
+            请查看附件下载对应系统的安装包：
+            - Windows: .msi 安装包
+            - macOS Intel: .dmg (x64) 安装包
+            - macOS Apple Silicon: .dmg (arm64) 安装包
+          draft: true
+          prerelease: false
+
+  build:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -74,14 +109,6 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
-      - name: Get version
-        id: get_version
-        shell: pwsh
-        run: |
-          $json = Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json
-          $version = $json.version
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
@@ -95,15 +122,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
-          tagName: v${{ steps.get_version.outputs.version }}
-          releaseName: 'DeepRant v${{ steps.get_version.outputs.version }}'
-          releaseBody: |
-            请查看附件下载对应系统的安装包：
-            - Windows: .msi 安装包
-            - macOS Intel: .dmg (x64) 安装包
-            - macOS Apple Silicon: .dmg (arm64) 安装包
-          releaseDraft: true
-          prerelease: false
           args: ${{ matrix.args }}
           tauriScript: 'npm run tauri'
 
@@ -115,13 +133,13 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            xcrun notarytool submit "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg" \
+            xcrun notarytool submit "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ needs.create-release.outputs.version }}_aarch64.dmg" \
               --apple-id "$APPLE_ID" \
               --password "$APPLE_ID_PASSWORD" \
               --team-id "$APPLE_TEAM_ID" \
               --wait
           else
-            xcrun notarytool submit "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg" \
+            xcrun notarytool submit "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ needs.create-release.outputs.version }}_x64.dmg" \
               --apple-id "$APPLE_ID" \
               --password "$APPLE_ID_PASSWORD" \
               --team-id "$APPLE_TEAM_ID" \
@@ -132,19 +150,16 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            xcrun stapler staple "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_aarch64.dmg"
+            xcrun stapler staple "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_${{ needs.create-release.outputs.version }}_aarch64.dmg"
           else
-            xcrun stapler staple "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ steps.get_version.outputs.version }}_x64.dmg"
+            xcrun stapler staple "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_${{ needs.create-release.outputs.version }}_x64.dmg"
           fi
 
       - name: Generate update manifest (Windows)
         if: matrix.platform == 'windows-latest'
-        id: generate_manifest_windows
         shell: pwsh
         run: |
-          $version = "${{ steps.get_version.outputs.version }}"
-          "version=$version" >> $env:GITHUB_OUTPUT
-
+          $version = "${{ needs.create-release.outputs.version }}"
           $manifest = @{
             version = $version
             notes = "自动生成更新包"
@@ -158,28 +173,23 @@ jobs:
 
           $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path latest.json -Encoding UTF8
 
-      - name: Upload release assets (Windows)
+      - name: Upload Windows Assets
         if: matrix.platform == 'windows-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
+          tag_name: v${{ needs.create-release.outputs.version }}
           files: |
             src-tauri/target/release/bundle/msi/DeepRant_*_zh-CN.msi
             src-tauri/target/release/bundle/msi/DeepRant_*_zh-CN.msi.sig
             latest.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 15
-        continue-on-error: true
 
       - name: Generate update manifest (macOS)
         if: matrix.platform == 'macos-latest'
-        id: generate_manifest_macos
         shell: bash
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
+          VERSION="${{ needs.create-release.outputs.version }}"
           if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
             SIG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig"
             echo '{
@@ -206,30 +216,26 @@ jobs:
             }' > latest.json
           fi
 
-      - name: Upload release assets (macOS ARM)
+      - name: Upload macOS ARM Assets
         if: matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
+          tag_name: v${{ needs.create-release.outputs.version }}
           files: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
             src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig
             latest.json
+
+      - name: Upload macOS Intel Assets
+        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 15
-        continue-on-error: true
-
-      - name: Upload release assets (macOS Intel)
-        if: matrix.platform == 'macos-latest' && contains(matrix.args, 'x86_64')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
+          tag_name: v${{ needs.create-release.outputs.version }}
           files: |
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
             src-tauri/target/x86_64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig
             latest.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 15
-        continue-on-error: true
