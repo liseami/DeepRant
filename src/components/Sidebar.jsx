@@ -10,7 +10,7 @@ import {
   GodlyWebsite,
 } from '../icons';
 import appIcon from '../assets/app-icon.png';
-import LoginModal from './LoginModal';
+// import LoginModal from './LoginModal';
 
 const sidebarItems = [
   { name: '主页', icon: HomeHLine, id: 'home' },
@@ -22,7 +22,7 @@ const sidebarItems = [
 ];
 
 export default function Sidebar({ activeItem, setActiveItem }) {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   return (
     <div className='h-full flex flex-col bg-[#F9F9F9]'>
@@ -94,10 +94,10 @@ export default function Sidebar({ activeItem, setActiveItem }) {
         </div>
       </div> */}
 
-      <LoginModal
+      {/* <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-      />
+      /> */}
     </div>
   );
 }
