@@ -26,3 +26,6 @@ dist-ssr
 *.env
 *.p8
 *.p12
+
+# supabase
+supabase

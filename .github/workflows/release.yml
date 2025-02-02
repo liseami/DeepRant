@@ -213,7 +213,7 @@ jobs:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.sig
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -227,7 +227,7 @@ jobs:
           tag_name: v${{ steps.get_version.outputs.version }}
           files: |
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_*.dmg
-            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.sig
+            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/DeepRant.app.tar.gz.sig
             latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

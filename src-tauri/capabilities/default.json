@@ -13,6 +13,10 @@
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "store:default",
+    "shell:allow-spawn",
+    "shell:allow-stdin-write",
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
     {
       "identifier": "shell:allow-execute",
       "allow": [
@@ -47,8 +51,6 @@
           ]
         }
       ]
-    },
-    "shell:allow-spawn",
-    "shell:allow-stdin-write"
+    }
   ]
 }
