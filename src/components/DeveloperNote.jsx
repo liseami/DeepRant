@@ -5,7 +5,7 @@ import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { showSuccess, showError } from '../utils/toast';
 import { Spinner } from '../icons';
-// import { openUrl } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 export default function DeveloperNote() {
   const [currentVersion, setCurrentVersion] = useState('');
@@ -93,7 +93,7 @@ export default function DeveloperNote() {
 
   const handleOpenLink = async (url) => {
     try {
-      // await openUrl(url);
+      await openUrl(url);
     } catch (error) {
       showError(`打开链接失败: ${error}`);
     }

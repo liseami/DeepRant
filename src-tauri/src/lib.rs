@@ -45,7 +45,7 @@ pub fn run() {
         // 剪贴板插件
         .plugin(tauri_plugin_clipboard_manager::init())
         // opener插件
-        // .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // 初始化存储
             println!("Initializing...");

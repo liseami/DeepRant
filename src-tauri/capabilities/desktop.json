@@ -18,7 +18,6 @@
     "shell:allow-spawn",
     "shell:allow-stdin-write",
     "opener:allow-open-url",
-    "opener:allow-default-urls",
     "updater:default",
     {
       "identifier": "shell:allow-execute",
