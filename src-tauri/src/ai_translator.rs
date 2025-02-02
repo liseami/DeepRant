@@ -286,14 +286,7 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
 
     // 解析响应
     println!("API响应原文: {:?}", response);
-    let translated = match response
-        .get("choices")
-        .and_then(|choices| choices.as_array())
-        .and_then(|choices| choices.first())
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(|content| content.as_str())
-    {
+    let translated = match response["choices"][0]["message"]["content"].as_str() {
         Some(text) => {
             let text = text.trim();
             // 如果找到</think>标签，只保留其后内容
