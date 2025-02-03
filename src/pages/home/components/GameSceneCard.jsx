@@ -41,42 +41,42 @@ export default function GameSceneCard() {
 
     return (
         <motion.div
-            className="relative h-full flex flex-col bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm"
+            className="relative h-full flex flex-col bg-white dark:bg-gray-800 rounded-2xl p-6 border border-zinc-200 dark:border-gray-700 hover:border-zinc-300 dark:hover:border-gray-600 transition-all duration-200 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
         >
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-sm text-zinc-500">
+                <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-gray-400">
                     {isDaily ? (
-                        <IMac className="w-6 h-6 stroke-zinc-500" />
+                        <IMac className="w-6 h-6 stroke-zinc-500 dark:stroke-gray-400" />
                     ) : (
-                        <GamingPad className="w-6 h-6 stroke-zinc-500" />
+                        <GamingPad className="w-6 h-6 stroke-zinc-500 dark:stroke-gray-400" />
                     )}
                     {isDaily ? '日常模式' : '游戏模式'}
                 </div>
                 <div className="flex flex-col items-end">
                     <button
                         onClick={toggleDailyMode}
-                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm transition-colors ${isDaily
-                            ? 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
-                            : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                            }`}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm transition-colors ${
+                            isDaily
+                                ? 'bg-zinc-200 dark:bg-gray-700 text-zinc-700 dark:text-gray-200 hover:bg-zinc-300 dark:hover:bg-gray-600'
+                                : 'bg-zinc-100 dark:bg-gray-700 text-zinc-500 dark:text-gray-300 hover:bg-zinc-200 dark:hover:bg-gray-600'
+                        }`}
                     >
-                        <span> {isDaily ? '游戏模式' : '日常模式'}</span>
-                        <Repeat01 className="w-4 h-4 text-zinc-600 hover:text-zinc-600 transition-colors" />
+                        <span>{isDaily ? '游戏模式' : '日常模式'}</span>
+                        <Repeat01 className="w-4 h-4 text-zinc-600 dark:text-gray-400 hover:text-zinc-600 dark:hover:text-gray-300 transition-colors" />
                     </button>
                 </div>
             </div>
             <div className="flex-1 flex flex-col justify-between mt-4">
-                <div className="text-sm text-zinc-400">
+                <div className="text-sm text-zinc-400 dark:text-gray-400">
                     {isDaily ? '划词翻译' : ' 合适的游戏场景选择，能保证翻译时更加符合游戏语境，如Moba类游戏中的推塔、gank，fps游戏中的rush等。'}
-
                 </div>
                 {!isDaily && (
                     <div className="relative">
                         <button
                             onClick={() => setShowMenu(true)}
-                            className="px-4 py-1.5 rounded-lg bg-zinc-50 hover:bg-[#EAEAEA] transition-colors text-2xl font-semibold text-zinc-900 dark:text-white"
+                            className="px-4 py-1.5 rounded-lg bg-zinc-50 dark:bg-gray-700 hover:bg-[#EAEAEA] dark:hover:bg-gray-600 transition-colors text-2xl font-semibold text-zinc-900 dark:text-white"
                         >
                             {gameName}
                         </button>

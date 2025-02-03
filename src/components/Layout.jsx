@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast';
 export default function Layout({ children, activeItem, setActiveItem }) {
     return (
         <StoreProvider>
-            <div className="flex h-screen bg-[#F9F9F9] overflow-hidden">
+            <div className="flex h-screen bg-[#F9F9F9] dark:bg-gray-900 overflow-hidden">
                 {/* Toast 容器 */}
                 <Toaster
                     toastOptions={{
@@ -24,8 +24,8 @@ export default function Layout({ children, activeItem, setActiveItem }) {
                 </div>
 
                 {/* 右侧内容区域 */}
-                <div className="flex-1 p-4">
-                    <div className="max-w-[1200px] mx-auto h-[calc(100vh-32px)] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 overflow-auto">
+                <div className="flex-1 overflow-auto bg-[#F9F9F9] dark:bg-gray-900">
+                    <div className="max-w-[1200px] mx-auto h-[calc(100vh-32px)] bg-[#F9F9F9] dark:bg-gray-900 rounded-2xl p-5 overflow-auto">
                         {children}
                     </div>
                 </div>

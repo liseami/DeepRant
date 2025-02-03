@@ -25,11 +25,11 @@ export default function Sidebar({ activeItem, setActiveItem }) {
   // const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   return (
-    <div className='h-full flex flex-col bg-[#F9F9F9]'>
+    <div className='h-full flex flex-col bg-[#F9F9F9] dark:bg-gray-900'>
       {/* Logo区域 */}
       <div className='px-5 py-5'>
         <div className='flex items-center space-x-2'>
-          <div className='rounded-xl flex items-center justify-center overflow-hidden w-[46px] h-[46px] min-w-[46px] border-2 border-white'>
+          <div className='rounded-xl flex items-center justify-center overflow-hidden w-[46px] h-[46px] min-w-[46px] border-2 border-white dark:border-gray-700'>
             <img
               src={appIcon}
               alt='DeepRant Logo'
@@ -38,7 +38,7 @@ export default function Sidebar({ activeItem, setActiveItem }) {
               className='object-cover w-[46px] h-[46px]'
             />
           </div>
-          <h3 className='text-[20px] font-semibold text-[#1a1a1a]'>DeepRant</h3>
+          <h3 className='text-[20px] font-semibold text-[#1a1a1a] dark:text-white'>DeepRant</h3>
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export default function Sidebar({ activeItem, setActiveItem }) {
               {isActive && (
                 <motion.div
                   layoutId='activeTab'
-                  className='absolute inset-0 bg-white rounded-lg shadow-[0_4px_8px_-2px_rgba(0,0,0,0.08)]'
+                  className='absolute inset-0 bg-white dark:bg-gray-800 rounded-lg shadow-[0_4px_8px_-2px_rgba(0,0,0,0.08)]'
                   initial={false}
                   transition={{
                     type: 'spring',
@@ -68,13 +68,13 @@ export default function Sidebar({ activeItem, setActiveItem }) {
                   'flex items-center px-3.5 py-2.5 cursor-pointer',
                   'text-[14px] font-medium relative z-10',
                   isActive
-                    ? 'text-[#1a1a1a] font-semibold'
-                    : 'text-[#666666] hover:text-[#1a1a1a]'
+                    ? 'text-[#1a1a1a] dark:text-white font-semibold'
+                    : 'text-[#666666] dark:text-gray-400 hover:text-[#1a1a1a] dark:hover:text-white'
                 )}>
                 <item.icon
                   className={twMerge(
                     'w-[18px] h-[18px] mr-3',
-                    isActive ? 'stroke-[#1a1a1a]' : 'stroke-[#666666]'
+                    isActive ? 'stroke-[#1a1a1a] dark:stroke-white' : 'stroke-[#666666] dark:stroke-gray-400'
                   )}
                 />
                 {item.name}
@@ -87,9 +87,9 @@ export default function Sidebar({ activeItem, setActiveItem }) {
       {/* 用户信息 */}
       {/* <div className='px-2 pb-3'>
         <div
-          className='flex items-center px-3.5 py-2.5 cursor-pointer text-[#666666] hover:text-[#1a1a1a]'
+          className='flex items-center px-3.5 py-2.5 cursor-pointer text-[#666666] dark:text-gray-400 hover:text-[#1a1a1a] dark:hover:text-white'
           onClick={() => setIsLoginModalOpen(true)}>
-          <UserUser01 className='w-[18px] h-[18px] mr-3 stroke-[#666666]' />
+          <UserUser01 className='w-[18px] h-[18px] mr-3 stroke-[#666666] dark:stroke-gray-400' />
           <span className='text-[14px] font-medium'>未登录</span>
         </div>
       </div> */}

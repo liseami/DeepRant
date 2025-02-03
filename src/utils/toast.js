@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast';
 
-const toastStyle = {
+const baseToastStyle = {
     style: {
         background: '#ffffff',
         color: '#18181b', // zinc-900
@@ -13,19 +13,27 @@ const toastStyle = {
     },
     duration: 2000,
     position: 'top-right',
+    className: '!bg-white dark:!bg-gray-800 dark:!text-gray-200 dark:!border-gray-700',
+};
+
+const successToastStyle = {
+    ...baseToastStyle,
+    style: {
+        ...baseToastStyle.style,
+    },
 };
 
 const errorToastStyle = {
-    ...toastStyle,
+    ...baseToastStyle,
     style: {
-        ...toastStyle.style,
+        ...baseToastStyle.style,
         color: '#ef4444', // red-500
     },
     duration: 3000,
 };
 
 export const showSuccess = (message) => {
-    toast.success(message, toastStyle);
+    toast.success(message, successToastStyle);
 };
 
 export const showError = (message) => {
