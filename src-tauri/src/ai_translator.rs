@@ -6,98 +6,107 @@ use tauri::AppHandle;
 fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: bool) -> String {
     if daily_mode {
         return format!(
-            r#"## 核心任务
-将用户输入从【{}】翻译到【{}】
+            r#"<task>将用户输入从【{}】翻译到【{}】</task>
 
-## 硬性要求
+<requirements>
 1. 直接输出翻译结果，禁止任何解释
 2. 单句长度控制在15-25字
 3. 确保口语化自然表达
 4. 禁止重复/冗余内容
 5. 保留数字和专有名词
+</requirements>
 
-## 风格指引
+<style>
 • 生活化口语表达
 • 符合日常交流习惯
-• 自然流畅不生硬"#,
+• 自然流畅不生硬
+</style>
+
+<output_format>
+仅输出一条最终翻译结果，不要包含任何思考过程或解释
+</output_format>"#,
             from, to
         );
     }
 
     let base = format!(
-        r#"## 核心任务
-将游戏内文字从【{}】翻译到【{}】
+        r#"<task>将游戏内文字从【{}】翻译到【{}】</task>
 
-## 输出规范
-- 字符限制: 20-100字符
-- 标点限制: ≤5个符号
-- 格式要求: 
-  • 禁止换行
-  • 禁止Markdown
-  • 禁止特殊符号
+<constraints>
+• 标点限制: ≤5个符号
+• 禁止换行
+• 禁止Markdown
+• 禁止特殊符号
+</constraints>
 
-## 术语处理
-1. 保留原始游戏术语
-2. 使用官方译名
-3. 维持缩写格式"#,
+<terms>
+• 保留原始游戏术语
+• 使用官方译名
+• 维持缩写格式
+</terms>"#,
         from, to
     );
 
     let mode_desc = match mode {
         "toxic" => {
-            r#"## 风格要求（毒舌模式）
-1. 生成2-3条地道俚语
-2. 攻击性要素:
-   • 使用中国百度贴吧老哥的大脑进行思考
-   • 用最为地狱笑话的心态来攻击对手
-   • 根据目标翻译语言，给予最为猛烈的地域歧视攻击
-   • 使用双重隐喻
-   • 融入游戏场景梗
-   • 符号化敏感词（如f*ck/cl@ssic）
-3. 参考来源:
-   • COD/堡垒之夜社区
-   • 百度贴吧风格
-   • 美式街头俚语
+            r#"<toxic_style>
+• 翻译用户原文后，还需进行2-3句扩写
+• 使用中国百度贴吧老哥的大脑进行思考
+• 用最为地狱笑话的心态来攻击对手
+• 根据目标翻译语言，在翻译的同时加入最为猛烈的地域歧视攻击
+• 使用双重隐喻
+• 融入游戏场景梗
+• 符号化敏感词（如f*ck/cl@ssic）
+</toxic_style>
 
-## 扩写规则
-- 每条添加1个战术术语（noob/camping）
-- 使用FPS/MOBA黑话重构"#
+<references>
+• COD/堡垒之夜社区
+• 百度贴吧风格
+• 美式街头俚语
+</references>
+
+<rules>
+• 每条添加1个战术术语（noob/camping）
+• 使用FPS/MOBA黑话重构
+</rules>"#
         }
         "pro" => {
-            r#"## 风格要求（职业模式）
-1. 表达方式:
-   • 赛事解说风格
-   • 选手交流简语
-2. 句式规范:
-   • 15字以内短句
-   • 英文术语优先（如roam）
-   • 添加战术标记（[推线]/[Gank]）
-3. 节奏控制:
-   • 0.5秒可读速度
-   • 去除冗余修饰词"#
+            r#"<pro_style>
+• 赛事解说风格
+• 选手交流简语
+• 15字以内短句
+• 英文术语优先（如roam）
+• 添加战术标记（[推线]/[Gank]）
+</pro_style>
+
+<rhythm>
+• 0.5秒可读速度
+• 去除冗余修饰词
+</rhythm>"#
         }
         "auto" => match scene {
             "dota2" | "lol" => {
-                r#"<translate_style>
-- 保留英文技能和装备缩写
-- 使用MOBA游戏特有黑话
-- 转换为选手间的简短指令
-- 保持游戏中的交流节奏</translate_style>"#
+                r#"<moba_style>
+• 保留英文技能和装备缩写
+• 使用MOBA游戏特有黑话
+• 转换为选手间的简短指令
+• 保持游戏中的交流节奏
+</moba_style>"#
             }
-
             "csgo" => {
-                r#"<translate_style>
-- 使用FPS战术简称(A1、B2等)
-- 转换为标准报点格式
-- 保留英文武器代号
-- 使用经济术语(eco、force等)</translate_style>"#
+                r#"<fps_style>
+• 使用FPS战术简称(A1、B2等)
+• 转换为标准报点格式
+• 保留英文武器代号
+• 使用经济术语(eco、force等)
+</fps_style>"#
             }
-
             _ => {
-                r#"<translate_style>
-- 识别并保留游戏术语
-- 转换为玩家间常用表达
-- 保持游戏交流的简洁性</translate_style>"#
+                r#"<general_style>
+• 识别并保留游戏术语
+• 转换为玩家间常用表达
+• 保持游戏交流的简洁性
+</general_style>"#
             }
         },
         _ => "",
@@ -105,99 +114,34 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
 
     let scene_desc = match scene {
         "dota2" => {
-            r#"## 上下文约束
-- 环境: DOTA2
-- 术语:
-  • 英雄简称（如ES=撼地神牛）
-  • 物品缩写（如BKB）
-- 表达:
-  • 使用赛事解说术语
-  • 保持团战节奏感"#
+            r#"<context>
+• 环境: DOTA2
+• 英雄简称（如ES=撼地神牛）
+• 物品缩写（如BKB）
+• 使用赛事解说术语
+• 保持团战节奏感
+</context>"#
         }
-
         "lol" => {
             r#"<context>
-- 英雄联盟游戏环境
-- 保留技能和装备简称
-- 使用赛事解说术语</context>"#
+• 英雄联盟游戏环境
+• 保留技能和装备简称
+• 使用赛事解说术语
+</context>"#
         }
-
         "csgo" => {
             r#"<context>
-- CS:GO游戏环境
-- 保留武器和位置代号
-- 使用标准战术用语</context>"#
+• CS:GO游戏环境
+• 保留武器和位置代号
+• 使用标准战术用语
+</context>"#
         }
-
-        "pubg" => {
-            r#"<context>
-- 绝地求生游戏环境
-- 保留武器配件名称（如6倍镜）
-- 使用生存战术术语
-- 包含物资收集相关表达</context>"#
-        }
-
-        "apex" => {
-            r#"<context>
-- Apex Legends游戏环境
-- 保留传奇技能名称
-- 使用滑索移动术语
-- 包含复活机制相关表达</context>"#
-        }
-
-        "overwatch" => {
-            r#"<context>
-- 守望先锋游戏环境
-- 保留英雄代号（如76）
-- 使用团队配合术语
-- 包含终极技能状态提示</context>"#
-        }
-
-        "valorant" => {
-            r#"<context>
-- Valorant游戏环境
-- 保留特工技能简称
-- 使用经济管理术语
-- 包含炸弹攻防相关表达</context>"#
-        }
-
-        "fortnite" => {
-            r#"<context>
-- Fortnite游戏环境
-- 保留建筑材料简称
-- 使用建造战术术语
-- 包含缩圈机制提示</context>"#
-        }
-
-        "minecraft" => {
-            r#"<context>
-- Minecraft游戏环境
-- 保留合成配方术语
-- 使用红石装置简称
-- 包含生物群落相关表达</context>"#
-        }
-
-        "warzone" => {
-            r#"<context>
-- Warzone游戏环境
-- 保留连杀奖励名称
-- 使用载具战术术语
-- 包含合约任务相关表达</context>"#
-        }
-
-        "wow" => {
-            r#"<context>
-- 魔兽世界游戏环境
-- 保留副本简称（M+）
-- 使用职业天赋术语
-- 包含团队副本指挥用语</context>"#
-        }
-
         _ => {
             r#"<context>
-- 通用游戏环境
-- 识别常见游戏用语
-- 保持游戏交流特点</context>"#
+• 通用游戏环境
+• 识别常见游戏用语
+• 保持游戏交流特点
+</context>"#
         }
     };
 
@@ -205,12 +149,17 @@ fn get_system_prompt(from: &str, to: &str, scene: &str, mode: &str, daily_mode: 
         r#"{}
 {}
 {}
-        
-## 合规审查
-1. 严格长度校验
-2. 术语一致性检查
-3. 敏感词二次过滤
-4. 输出格式终检"#,
+
+<compliance>
+• 严格长度校验
+• 术语一致性检查
+• 敏感词二次过滤
+• 输出格式终检
+</compliance>
+
+<output_format>
+仅输出一条最终翻译结果，不要包含任何思考过程或解释
+</output_format>"#,
         base, mode_desc, scene_desc
     )
 }
@@ -263,32 +212,43 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
 
     let client = Client::new();
 
-    let max_tokens = if settings.model_type == "deepseek-R1" {
-        800
+    let request_body = if settings.model_type == "deepseek-R1" {
+        json!({
+            "model": model_config.model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": original
+                }
+            ],
+            "max_tokens": 8000
+        })
     } else {
-        300
+        json!({
+            "model": model_config.model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": original
+                }
+            ],
+            "max_tokens": 300,
+            "temperature": 0.9,
+            "top_p": 0.7,
+            "n": 1,
+            "stream": false,
+            "presence_penalty": 0.3,
+            "frequency_penalty": -0.3
+        })
     };
-
-    let request_body = json!({
-        "model": model_config.model_name,
-        "messages": [
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": original
-            }
-        ],
-        "max_tokens": max_tokens,
-        "temperature": 0.9,
-        "top_p": 0.7,
-        "n": 1,
-        "stream": false,
-        "presence_penalty": 0.3,
-        "frequency_penalty": -0.3
-    });
 
     let response = match client
         .post(&model_config.api_url)
@@ -325,6 +285,7 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
     };
 
     // 解析响应
+    println!("API响应原文: {:?}", response);
     let translated = match response
         .get("choices")
         .and_then(|choices| choices.as_array())
