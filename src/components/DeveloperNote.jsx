@@ -100,58 +100,60 @@ export default function DeveloperNote() {
   };
 
   return (
-    <div className='flex flex-col bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] backdrop-blur-sm'>
-      <div className='flex items-center gap-3 text-sm text-zinc-500 mb-6'>
-        <Coffee className='w-6 h-6 stroke-zinc-500' />
+    <div className="flex flex-col bg-white dark:bg-gray-800 rounded-2xl p-6 border border-zinc-200 dark:border-gray-700 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm h-full">
+      <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-gray-400">
+        <Coffee className="w-6 h-6 stroke-zinc-500 dark:stroke-gray-400" />
         开发者说
       </div>
-      <div className='flex flex-col gap-4'>
-        <div className='text-lg font-medium text-zinc-900 dark:text-white'>
-          你好，我是赵纯想
-        </div>
-        <p className='text-zinc-600 dark:text-zinc-400 leading-relaxed'>
-          DeepRant
-          是我的一个实验性项目，主要目的：1、在国际服游戏骂战中保证语言优势。2、测试目前尚不流行的Tauri2框架。
-          目前这个软件是免费的，我暂时为所有Api调用支付费用。
-        </p>
+      <div className="flex-1 flex flex-col justify-between mt-4">
+        <div className="text-sm text-zinc-400 dark:text-gray-400">
+          <div className='text-lg font-medium text-zinc-900 dark:text-white'>
+            你好，我是赵纯想
+          </div>
+          <p className='text-zinc-600 dark:text-zinc-400 leading-relaxed'>
+            DeepRant
+            是我的一个实验性项目，主要目的：1、在国际服游戏骂战中保证语言优势。2、测试目前尚不流行的Tauri2框架。
+            目前这个软件是免费的，我暂时为所有Api调用支付费用。
+          </p>
 
-        {socialLinks.map((link, index) => (
+          {socialLinks.map((link, index) => (
+            <div
+              key={index}
+              onClick={() => handleOpenLink(link.url)}
+              className='self-start flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer'>
+              {link.icon}
+              {link.name}
+            </div>
+          ))}
+
           <div
-            key={index}
-            onClick={() => handleOpenLink(link.url)}
-            className='self-start flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer'>
-            {link.icon}
-            {link.name}
+            onClick={() => handleOpenLink('https://chunxiang.space')}
+            className='self-start flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-950 to-emerald-900 hover:from-emerald-900 hover:to-emerald-800 transition-all transform hover:scale-105 text-sm text-white cursor-pointer shadow-lg ring-2 ring-white/50 ring-offset-2 ring-offset-emerald-950 hover:ring-white/80'>
+            <Macbook className='w-4 h-4 stroke-white' />
+            纯想0基础全栈开发课程
           </div>
-        ))}
 
-        <div
-          onClick={() => handleOpenLink('https://chunxiang.space')}
-          className='self-start flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-950 to-emerald-900 hover:from-emerald-900 hover:to-emerald-800 transition-all transform hover:scale-105 text-sm text-white cursor-pointer shadow-lg ring-2 ring-white/50 ring-offset-2 ring-offset-emerald-950 hover:ring-white/80'>
-          <Macbook className='w-4 h-4 stroke-white' />
-          纯想0基础全栈开发课程
+          {updateAvailable && (
+            <div className='mt-4 p-3 bg-yellow-50 dark:bg-yellow-900 rounded-lg flex items-center gap-3'>
+              <span className='text-sm text-yellow-700 dark:text-yellow-200'>
+                新版本 {currentVersion} 可用！
+              </span>
+              <button
+                onClick={handleUpdate}
+                disabled={isUpdating}
+                className='px-3 py-1 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-200 rounded-full text-sm flex items-center gap-2'>
+                {isUpdating ? (
+                  <>
+                    <Spinner className='w-4 h-4 animate-spin' />
+                    更新中...
+                  </>
+                ) : (
+                  '立即更新'
+                )}
+              </button>
+            </div>
+          )}
         </div>
-
-        {updateAvailable && (
-          <div className='mt-4 p-3 bg-yellow-50 dark:bg-yellow-900 rounded-lg flex items-center gap-3'>
-            <span className='text-sm text-yellow-700 dark:text-yellow-200'>
-              新版本 {currentVersion} 可用！
-            </span>
-            <button
-              onClick={handleUpdate}
-              disabled={isUpdating}
-              className='px-3 py-1 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-200 rounded-full text-sm flex items-center gap-2'>
-              {isUpdating ? (
-                <>
-                  <Spinner className='w-4 h-4 animate-spin' />
-                  更新中...
-                </>
-              ) : (
-                '立即更新'
-              )}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

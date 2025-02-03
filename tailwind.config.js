@@ -5,6 +5,7 @@ export default {
         'main.jsx',
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
+    darkMode: 'class',
     theme: {
         extend: {
             colors: {

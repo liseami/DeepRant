@@ -148,17 +148,17 @@ export default function HotkeyCard() {
     return (
         <motion.button
             onClick={startRecording}
-            className="h-full flex flex-col bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm"
+            className="h-full flex flex-col bg-white dark:bg-gray-800 rounded-2xl p-6 border border-zinc-200 dark:border-gray-700 hover:border-zinc-300 dark:hover:border-gray-600 transition-all duration-200 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
         >
-            <div className="flex items-center gap-3 text-sm text-zinc-500">
-                <KeyboardAlt className="w-6 h-6 stroke-zinc-500" />
+            <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-gray-400">
+                <KeyboardAlt className="w-6 h-6 stroke-zinc-500 dark:stroke-gray-400" />
                 翻译快捷键
             </div>
             <div className="flex-1 flex flex-col justify-between mt-4">
-                <div className="text-sm text-zinc-400">
+                <div className="text-sm text-zinc-400 dark:text-gray-400">
                     {isRecording ? '请按下新的快捷键组合，松开任意按键完成设置' : '点击设置快捷键'}
                 </div>
                 <div className="text-2xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
