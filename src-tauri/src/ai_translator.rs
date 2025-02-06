@@ -212,7 +212,8 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
 
     let client = Client::new();
 
-    let request_body = if settings.model_type == "deepseek-R1" {
+    let request_body = if settings.model_type.to_lowercase().starts_with("deepseek-r1") || 
+                                settings.custom_model.model_name.to_lowercase().starts_with("deepseek-r1") {
         json!({
             "model": model_config.model_name,
             "messages": [
@@ -249,7 +250,7 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
             "frequency_penalty": -0.3
         })
     };
-
+    
     let response = match client
         .post(&model_config.api_url)
         .header("Content-Type", "application/json")
