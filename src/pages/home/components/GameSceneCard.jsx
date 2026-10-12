@@ -1,22 +1,17 @@
+/**
+ * [INPUT]: 依赖 GAMES from data/scenes；依赖 I18N；依赖 useStore 的 game_scene / daily_mode / custom_scene_*
+ * [OUTPUT]: 提供游戏场景选择、日常模式开关、自定义场景名称与提示词
+ * [POS]: 首页三卡之一。只读 scenes.js，不维护本地名单。
+ * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ */
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { GamingPad, Repeat01, SwitchArrowHorizontal, IMac } from '../../../icons';
+import { GamingPad, Repeat01, IMac } from '../../../icons';
 import { useStore } from '../../../components/StoreProvider';
 import DropdownMenu from '../../../components/DropdownMenu';
-
-const GAMES = {
-    lol: '英雄联盟',
-    dota2: 'Dota 2',
-    csgo: 'CS:GO',
-    pubg: 'PUBG',
-    apex: 'Apex Legends',
-    overwatch: '守望先锋',
-    valorant: 'Valorant',
-    fortnite: 'Fortnite',
-    minecraft: 'Minecraft',
-    warzone: 'Warzone',
-    wow: '魔兽世界'
-};
+import { GAMES } from '../../../data/scenes.js';
+import { I18N, uiLocale } from '../../../data/i18n.js';
 
 export default function GameSceneCard() {
     const [showMenu, setShowMenu] = useState(false);
@@ -25,14 +20,16 @@ export default function GameSceneCard() {
 
     const gameId = settings?.game_scene || 'lol';
     const isDaily = settings?.daily_mode || false;
+    const isCustom = gameId === 'custom';
+    const labels = I18N[uiLocale(settings?.ui_language)].card;
 
     useEffect(() => {
-        setGameName(GAMES[gameId]);
+        setGameName(GAMES[gameId] || GAMES.lol);
     }, [gameId]);
 
-    const handleGameSelect = async (gameId) => {
+    const handleGameSelect = async (nextGameId) => {
         setShowMenu(false);
-        await updateSettings({ game_scene: gameId });
+        await updateSettings({ game_scene: nextGameId });
     };
 
     const toggleDailyMode = async () => {
@@ -52,7 +49,7 @@ export default function GameSceneCard() {
                     ) : (
                         <GamingPad className="w-6 h-6 stroke-zinc-500" />
                     )}
-                    {isDaily ? '日常模式' : '游戏模式'}
+                    {isDaily ? labels.daily_mode : labels.game_mode}
                 </div>
                 <div className="flex flex-col items-end">
                     <button
@@ -62,7 +59,7 @@ export default function GameSceneCard() {
                             : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                             }`}
                     >
-                        <span> {isDaily ? '游戏模式' : '日常模式'}</span>
+                        <span> {isDaily ? labels.game_mode : labels.daily_mode}</span>
                         <Repeat01 className="w-4 h-4 text-zinc-600 hover:text-zinc-600 transition-colors" />
                     </button>
                 </div>
@@ -73,7 +70,7 @@ export default function GameSceneCard() {
 
                 </div>
                 {!isDaily && (
-                    <div className="relative">
+                    <div className="relative space-y-3">
                         <button
                             onClick={() => setShowMenu(true)}
                             className="px-4 py-1.5 rounded-lg bg-zinc-50 hover:bg-[#EAEAEA] transition-colors text-2xl font-semibold text-zinc-900 dark:text-white"
@@ -87,9 +84,29 @@ export default function GameSceneCard() {
                             currentValue={gameId}
                             onSelect={handleGameSelect}
                         />
+
+                        {/* -------- 自定义场景 -------- */}
+                        {isCustom && (
+                            <div className="space-y-2">
+                                <input
+                                    type="text"
+                                    value={settings?.custom_scene_name || ''}
+                                    onChange={(e) => updateSettings({ custom_scene_name: e.target.value })}
+                                    placeholder="场景名称，如 自定义二游"
+                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300"
+                                />
+                                <textarea
+                                    value={settings?.custom_scene_prompt || ''}
+                                    onChange={(e) => updateSettings({ custom_scene_prompt: e.target.value })}
+                                    placeholder="语境/对照说明"
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 resize-none"
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </motion.div>
     );
-} 
+}
