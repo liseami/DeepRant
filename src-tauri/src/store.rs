@@ -29,6 +29,7 @@ pub struct ModelConfig {
     pub api_url: String,
     pub model_name: String,
     pub protocol: String,
+    pub reasoning_model: bool,
     #[serde(skip_deserializing)]
     pub has_api_key: bool,
 }
@@ -39,38 +40,13 @@ impl Default for ModelConfig {
             api_url: "https://api.deepseek.com/chat/completions".into(),
             model_name: "deepseek-flash".into(),
             protocol: "openai".into(),
+            reasoning_model: false,
             has_api_key: false,
         }
     }
 }
 
-pub fn model_preset(provider: &str) -> Option<ModelConfig> {
-    let (api_url, model_name, protocol) = match provider {
-        "deepseek" => ("https://api.deepseek.com", "deepseek-flash", "openai"),
-        "deepseek-pro" | "deepseek-R1" => ("https://api.deepseek.com", "deepseek-v4-pro", "openai"),
-        "openai" => ("https://api.openai.com/v1", "gpt-4.1-mini", "openai"),
-        "anthropic" => (
-            "https://api.anthropic.com/v1",
-            "claude-haiku-5-5",
-            "anthropic",
-        ),
-        "ollama" => ("http://localhost:11434/v1", "qwen3:8b", "openai"),
-        "stepfun" => ("https://api.stepfun.com/v1", "step-2-16k", "openai"),
-        "siliconflow" => (
-            "https://api.siliconflow.cn/v1",
-            "deepseek-ai/DeepSeek-V3.2",
-            "openai",
-        ),
-        "custom" => return None,
-        _ => return None,
-    };
-    Some(ModelConfig {
-        api_url: api_url.into(),
-        model_name: model_name.into(),
-        protocol: protocol.into(),
-        has_api_key: false,
-    })
-}
+pub use crate::model_presets::model_preset;
 
 pub fn normalize_api_url(raw: &str, protocol: &str) -> Result<String> {
     if !matches!(protocol, "openai" | "anthropic") {
@@ -206,6 +182,7 @@ pub struct AppSettings {
     pub game_scene: String,
     pub translation_mode: String,
     pub daily_mode: bool,
+    pub input_mode: String,
     pub model_type: String,
     pub custom_model: ModelConfig,
     pub phrases: Vec<Phrase>,
@@ -213,6 +190,7 @@ pub struct AppSettings {
     pub custom_scene_name: String,
     pub custom_scene_prompt: String,
     pub custom_glossary: String,
+    pub custom_instructions: String,
     pub ui_language: String,
 }
 
@@ -225,6 +203,7 @@ impl Default for AppSettings {
             game_scene: "dota2".into(),
             translation_mode: "toxic".into(),
             daily_mode: false,
+            input_mode: "auto".into(),
             model_type: "deepseek".into(),
             custom_model: ModelConfig::default(),
             phrases: default_phrases(),
@@ -232,6 +211,7 @@ impl Default for AppSettings {
             custom_scene_name: String::new(),
             custom_scene_prompt: String::new(),
             custom_glossary: String::new(),
+            custom_instructions: String::new(),
             ui_language: "zh".into(),
         }
     }
@@ -266,6 +246,9 @@ fn default_phrases() -> Vec<Phrase> {
 // ---------------------------------------------------------------------------
 
 pub fn validate_settings(settings: &AppSettings) -> Result<()> {
+    if !matches!(settings.input_mode.as_str(), "auto" | "replace" | "compose") {
+        bail!("输入方式无效，请选择自动、原位替换或游戏输入浮窗");
+    }
     if settings.model_type != "custom" && model_preset(&settings.model_type).is_none() {
         bail!("不支持的模型供应商，请选择预设或自定义模型");
     }
@@ -304,6 +287,7 @@ pub fn validate_settings(settings: &AppSettings) -> Result<()> {
     if settings.custom_scene_name.len() > 256
         || settings.custom_scene_prompt.len() > MAX_TEXT_BYTES
         || settings.custom_glossary.len() > MAX_TEXT_BYTES
+        || settings.custom_instructions.len() > MAX_TEXT_BYTES
     {
         bail!("自定义场景名称或词库过长，请缩短后保存");
     }
@@ -506,10 +490,12 @@ fn apply_patch(current: &AppSettings, patch: Value) -> Result<(AppSettings, Opti
             | "game_scene"
             | "translation_mode"
             | "daily_mode"
+            | "input_mode"
             | "model_type"
             | "custom_scene_name"
             | "custom_scene_prompt"
             | "custom_glossary"
+            | "custom_instructions"
             | "ui_language" => {
                 value[field] = incoming.clone();
             }
@@ -531,7 +517,7 @@ fn apply_patch(current: &AppSettings, patch: Value) -> Result<(AppSettings, Opti
                                 secret = Some(key.to_string());
                             }
                         }
-                        "api_url" | "model_name" | "protocol" => {
+                        "api_url" | "model_name" | "protocol" | "reasoning_model" => {
                             value["custom_model"][key] = setting.clone();
                         }
                         "has_api_key" => {
@@ -716,6 +702,15 @@ mod tests {
         );
         let defaults: AppSettings = serde_json::from_value(json!({"daily_mode": true})).unwrap();
         assert!(defaults.daily_mode);
+        assert_eq!(defaults.input_mode, "auto");
+        assert!(apply_patch(&current, json!({"input_mode": "hook"})).is_err());
+        assert_eq!(
+            apply_patch(&current, json!({"input_mode": "compose"}))
+                .unwrap()
+                .0
+                .input_mode,
+            "compose"
+        );
         assert_eq!(defaults.custom_model.model_name, "deepseek-flash");
     }
 
