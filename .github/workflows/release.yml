@@ -46,6 +46,9 @@ jobs:
           python -c 'import pathlib,subprocess,os; binary=subprocess.check_output(["rustup","which","cargo"],text=True).strip(); open(os.environ["GITHUB_PATH"],"a").write(str(pathlib.Path(binary).parent)+"\n")'
           rustup target add --toolchain 1.98.1 ${{ matrix.target }}
           npm ci
+      - name: Prepare locked macOS disk image tools
+        if: runner.os == 'macOS'
+        run: python -m pip install --require-hashes --only-binary=:all: -r scripts/release-requirements.txt
       - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c
         with:
           workspaces: src-tauri -> target
