@@ -1,54 +1,49 @@
 /**
- * [INPUT]: 依赖 Tailwind 构建和系统字体
- * [OUTPUT]: 提供统一布局、表单、卡片、按钮、焦点与响应式样式
- * [POS]: WebView 的视觉基础；原生控件保持可访问与可键盘操作
+ * [INPUT]: 依赖 Tailwind 4 的预检、工具类与项目配置
+ * [OUTPUT]: 提供原版全局视觉，以及快捷键录制和更新提示的局部样式
+ * [POS]: 页面通过原版 Tailwind 类表达外观，全局规则不覆盖页面表单和按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #18181b; background: #f6f6f8; font-synthesis: none; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; border: 1px solid #dedee3; border-radius: 9px; background: white; color: #27272a; padding: 9px 14px; }
-button:hover:not(:disabled) { background: #f4f4f5; }
-button:disabled { opacity: .55; cursor: not-allowed; }
-button.primary { background: #27272a; border-color: #27272a; color: white; }
-button.primary:hover:not(:disabled) { background: #45454a; }
-button.danger { color: #b91c1c; }
-:focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
-input:not([type="checkbox"]), select, textarea { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border: 1px solid #d4d4d8; border-radius: 8px; background: white; color: #27272a; }
-input[type="checkbox"] { width: 18px; height: 18px; accent-color: #27272a; flex-shrink: 0; }
-textarea { resize: vertical; min-height: 96px; }
-label { font-size: 14px; font-weight: 500; display: block; }
-label small, small { font-weight: 400; display: block; margin-top: 7px; color: #71717a; line-height: 1.5; }
-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-h1 { font-size: 26px; font-weight: 650; margin: 0 0 10px; letter-spacing: -.025em; }
-h2 { font-size: 17px; font-weight: 600; margin: 0 0 16px; }
-p { line-height: 1.65; margin: 0; color: #62626d; }
-.app-layout { display: flex; height: 100vh; overflow: hidden; }
-.sidebar { width: 180px; padding: 24px 12px 16px; display: flex; flex-direction: column; flex-shrink: 0; }
-.brand { display: flex; gap: 9px; align-items: center; margin: 0 0 28px 5px; font-size: 20px; }
-.brand img { border-radius: 10px; }
-.sidebar nav { display: flex; flex-direction: column; gap: 6px; }
-.sidebar nav button { border-color: transparent; background: transparent; text-align: left; padding: 12px 16px; color: #62626d; }
-.sidebar nav .nav-active { background: white; color: #18181b; box-shadow: 0 2px 8px #00000006; font-weight: 600; }
-.language-switch { display: flex; gap: 6px; margin-top: auto; }
-.language-switch button { font-size: 12px; background: transparent; flex: 1; padding: 7px 3px; }
-.language-switch button[aria-pressed="true"] { background: white; font-weight: 600; }
-.main-content { flex: 1; min-width: 0; overflow: auto; margin: 16px 16px 16px 0; background: white; border-radius: 18px; padding: 28px; }
-.page-stack { display: flex; flex-direction: column; gap: 24px; max-width: 1100px; margin: 0 auto; }
-.card { border: 1px solid #e4e4e7; border-radius: 14px; padding: 22px; background: white; min-width: 0; }
-.card p + p { margin-top: 12px; }
-.grid-two, .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.full-width { grid-column: 1 / -1; }
-.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.note { font-size: 13px; }
-.check-label { display: flex; gap: 10px; align-items: center; }
-.status-text { margin-top: 10px; color: #62626d; font-size: 13px; }
-.phrase-row { display: grid; grid-template-columns: 1fr auto; gap: 18px; }
-.hotkey-button { font-family: ui-monospace, monospace; min-width: 100px; }
-.update-notice { position: fixed; bottom: 24px; right: 24px; z-index: 40; max-width: 460px; box-shadow: 0 12px 50px #0002; }
-.update-notice .actions { margin-top: 16px; }
-@media (max-width: 1000px) { .main-content { padding: 22px; } .grid-two, .form-grid { grid-template-columns: 1fr; } .phrase-row { grid-template-columns: 1fr; } }
+button:not(:disabled) { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+:focus-visible { outline: 2px solid #a1a1aa; outline-offset: 3px; }
+
+/* -------- 翻译卡片使用共享录制器，保持原版整卡点击和底部按键位置 -------- */
+.game-hotkey-card > .hotkey-button {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 24px;
+  display: flex;
+  align-items: flex-end;
+  text-align: left;
+  border-radius: 16px;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #18181b;
+  background: transparent;
+}
+
+/* -------- 常驻更新通知仅在有更新时出现，不改变主界面结构 -------- */
+.update-notice {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 40;
+  max-width: 460px;
+  padding: 24px;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 12px 50px #0002;
+}
+.update-notice h2 { margin-bottom: 12px; font-size: 18px; font-weight: 600; }
+.update-notice p { color: #52525b; font-size: 14px; }
+.update-notice .actions { display: flex; gap: 10px; margin-top: 16px; }
+.update-notice button { padding: 8px 14px; border-radius: 8px; background: #f4f4f5; font-size: 14px; }
+.update-notice button:hover { background: #e4e4e7; }
+.update-notice button.primary { background: #18181b; color: white; }
