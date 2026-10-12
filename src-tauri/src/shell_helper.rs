@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 store 的翻译设置、ai_translator 的模型请求、clipboard-manager 和 enigo 0.6 的原生输入；平台 API 提供焦点及修饰键状态
- * [OUTPUT]: 提供 trans_and_replace_text、send_phrase 与 deeprant://input-status 事件
+ * [INPUT]: 依赖 store 输入方式、game_composer 游戏浮窗、ai_translator 模型请求、clipboard-manager 与 enigo 原生输入；平台 API 提供焦点及修饰键状态
+ * [OUTPUT]: 提供 trans_and_replace_text、send_phrase、共享 BusyGuard、Unicode 填入及 deeprant://input-status 事件
  * [POS]: 快捷键共享的串行输入事务。复制必须产生新文本，原文未变且焦点未离开才粘贴；状态和错误只进入 WebView。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,9 +38,9 @@ pub fn report_status(app: &AppHandle, state: &str, message: &str) {
 // 事务：拒绝重复触发，不排队积累过期的输入意图
 // ---------------------------------------------------------------------------
 
-struct BusyGuard;
+pub(crate) struct BusyGuard;
 impl BusyGuard {
-    fn acquire() -> Result<Self> {
+    pub(crate) fn acquire() -> Result<Self> {
         INPUT_BUSY
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| anyhow!("输入事务正在进行，请等待完成后再触发快捷键"))?;
@@ -100,7 +100,7 @@ impl InputTransaction {
             }
             std::thread::sleep(POLL_INTERVAL);
         }
-        bail!("当前输入框没有复制出文本。请先选中文本；游戏若禁用复制，请使用 DeepRant 的手动翻译页。Windows 还需检查双方权限级别是否一致，macOS 需授予辅助功能权限。")
+        bail!("当前输入框没有复制出文本。请先选中文本；游戏若禁用复制，请在首页切换游戏输入浮窗。Windows 还需检查双方权限级别是否一致，macOS 需授予辅助功能权限。")
     }
 
     fn paste(&self, text: &str) -> Result<()> {
@@ -117,8 +117,14 @@ impl InputTransaction {
 }
 
 pub async fn trans_and_replace_text(app: &AppHandle) -> Result<()> {
-    let busy = BusyGuard::acquire()?;
+    if crate::game_composer::focus_existing(app)? {
+        return Ok(());
+    }
     let settings = crate::store::get_settings(app)?;
+    if crate::game_composer::should_compose(&settings) {
+        return crate::game_composer::open(app).await;
+    }
+    let busy = BusyGuard::acquire()?;
     let app = app.clone();
     let select_all = !settings.daily_mode;
     let (transaction, original) = tauri::async_runtime::spawn_blocking(move || {
@@ -203,6 +209,28 @@ fn shortcut(focus: &FocusWatch, letter: char) -> Result<()> {
     release.context("释放注入的修饰键失败")?;
     std::thread::sleep(Duration::from_millis(50));
     focus.check()
+}
+
+/// 浮窗只写 Unicode 文本，不修改剪贴板、不选择原文、不发送回车。
+pub(crate) fn type_composed_text(text: &str, check_focus: impl Fn() -> Result<()>) -> Result<()> {
+    let deadline = Instant::now() + RELEASE_TIMEOUT;
+    while platform::modifiers_down() {
+        check_focus()?;
+        if Instant::now() >= deadline {
+            bail!("请松开修饰键后再次填入译文");
+        }
+        std::thread::sleep(POLL_INTERVAL);
+    }
+    check_focus()?;
+    let mut enigo = Enigo::new(&Settings {
+        open_prompt_to_get_permissions: false,
+        ..Settings::default()
+    })
+    .map_err(|_| anyhow!("无法输入译文：请检查 macOS 辅助功能权限或 Windows 双方权限级别"))?;
+    check_focus()?;
+    enigo
+        .text(text)
+        .context("系统拒绝文本输入，可能已输入部分文字；请检查游戏聊天框再决定是否重试")
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +397,7 @@ mod platform {
                 let mut info: GuiThreadInfo = std::mem::zeroed();
                 info.size = std::mem::size_of::<GuiThreadInfo>() as u32;
                 if thread == 0 || GetGUIThreadInfo(thread, &mut info) == 0 || info.focus == 0 {
-                    bail!("无法确认目标输入焦点，请在普通输入框中重试或使用手动翻译页");
+                    bail!("无法确认目标输入焦点，请在普通输入框中重试或切换游戏输入浮窗");
                 }
                 Ok(Self {
                     window,
@@ -474,7 +502,7 @@ mod platform {
                     .ok_or_else(|| anyhow!("无法读取前台应用，请使用手动翻译页"))?;
                 let target = attribute(application.0 as Ref, b"AXFocusedUIElement\0")
                     .or_else(|| attribute(application.0 as Ref, b"AXFocusedWindow\0"))
-                    .ok_or_else(|| anyhow!("当前程序未提供可确认的输入焦点，请使用手动翻译页"))?;
+                    .ok_or_else(|| anyhow!("当前程序未提供可确认的输入焦点，请切换游戏输入浮窗"))?;
                 let mut pid = 0;
                 if AXUIElementGetPid(application.0 as Ref, &mut pid) != 0 {
                     bail!("无法确认前台应用身份");

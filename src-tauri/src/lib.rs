@@ -1,12 +1,15 @@
 /**
- * [INPUT]: store 的设置与凭据迁移、shortcut 的注册事务、ai_translator 的统一模型管道。
- * [OUTPUT]: 受校验的设置/常用语/翻译 IPC 与桌面生命周期。
+ * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、ai_translator 模型管道、game_composer 独立输入会话。
+ * [OUTPUT]: 受校验的设置/常用语/翻译/游戏输入 IPC 与桌面生命周期；浮窗关闭使用取消事务。
  * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键变更与系统注册一起提交。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use tauri::Manager;
 pub mod ai_translator;
+mod composer_target;
 pub mod credentials;
+pub mod game_composer;
+pub mod model_presets;
 pub mod scenes;
 pub mod shell_helper;
 pub mod shortcut;
@@ -245,8 +248,13 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+                if window.label() == "composer" {
+                    api.prevent_close();
+                    game_composer::close_requested(window.app_handle());
+                } else if window.label() == "main" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -264,7 +272,10 @@ pub fn run() {
             set_phrase_enabled,
             set_phrases_enabled,
             add_phrase,
-            delete_phrase
+            delete_phrase,
+            game_composer::get_composer_session,
+            game_composer::commit_composer,
+            game_composer::cancel_composer
         ])
         .run(tauri::generate_context!())
         .expect("DeepRant desktop runtime failed");

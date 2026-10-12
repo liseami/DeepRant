@@ -8,7 +8,7 @@ windows-app-manifest.xml: Tauri 默认 Common Controls v6 声明，防止库单�
 tauri.conf.json: 桌面窗口、CSP、包标识与签名更新；原录屏作为单文件资源，asset scope 只允许该文件按 Range 流式读取。
 Info.plist: macOS 应用信息。
 entitlements.plist: macOS hardened runtime 权限。
-src/: 设置、输入、模型和快捷键边界，详见 src/CLAUDE.md。
+src/: 设置、模型、快捷键、原位输入与独立游戏浮窗；目标身份与 Unicode 回填留在原生边界，详见 src/CLAUDE.md。
 capabilities/: WebView 命令权限白名单。
 icons/: 各平台安装器图标。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
