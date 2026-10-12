@@ -1,66 +1,53 @@
 /**
- * [INPUT]: 依赖原版 SVG、应用图标、导航状态和界面语言设置
- * [OUTPUT]: 提供原版侧栏视觉、菜单动画及中英界面切换
- * [POS]: Layout 的游戏翻译导航边界，页面与 Rust 设置契约分别交给 App 和 StoreProvider
+ * [INPUT]: 依赖 Cromma UI NavButton/Button、Pika 图标、应用品牌图和界面语言设置
+ * [OUTPUT]: 提供 CCBaga 同款极简侧栏，保留 DeepRant 原菜单及未登录入口
+ * [POS]: Layout 的游戏翻译导航边界，控件皮肤与图标只从 Cromma UI 取得
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { motion } from 'framer-motion';
-import { twMerge } from 'tailwind-merge';
-import { HomeHLine, Settings02, Translate, InfoCircle, GodlyWebsite, UserUser01 } from '../icons';
+import { Fragment } from 'react';
+import { NavButton, Button } from 'cromma-ui';
+import { HomeDefault, Translate, MessageDefault, ClockDefault, Settings01, MegaphoneAnnouncementShout, UserRectangle } from 'cromma-ui/pika';
 import appIcon from '../assets/app-icon.png';
 import { useStore } from './StoreProvider';
 import { showError } from '../utils/toast';
 
 const sidebarItems = [
-  { name: '主页', english: 'Home', icon: HomeHLine, id: 'home' },
+  { name: '主页', english: 'Home', icon: HomeDefault, id: 'home' },
   { name: '模式', english: 'Modes', icon: Translate, id: 'translate' },
-  { name: '常用语', english: 'Phrases', icon: InfoCircle, id: 'phrases' },
-  { name: '能量', english: 'Energy', icon: GodlyWebsite, id: 'mana' },
-  { name: 'AI模型', english: 'AI models', icon: Settings02, id: 'settings' },
-  { name: '关于', english: 'About', icon: InfoCircle, id: 'about' },
+  { name: '常用语', english: 'Phrases', icon: MessageDefault, id: 'phrases' },
+  { name: '能量', english: 'Energy', icon: ClockDefault, id: 'mana' },
+  { name: 'AI模型', english: 'AI models', icon: Settings01, id: 'settings' },
+  { name: '关于', english: 'About', icon: MegaphoneAnnouncementShout, id: 'about' },
 ];
 
 export default function Sidebar({ activeItem, setActiveItem }) {
   const { locale, updateSettings, settings } = useStore();
   return (
-    <div className="h-full flex flex-col bg-[#F9F9F9]">
-      <div className="px-5 py-5">
-        <div className="flex items-center space-x-2">
-          <div className="rounded-xl flex items-center justify-center overflow-hidden w-[46px] h-[46px] min-w-[46px] border-2 border-white">
-            <img src={appIcon} alt="DeepRant Logo" width="46" height="46" className="object-cover w-[46px] h-[46px]" />
-          </div>
-          <h3 className="text-[20px] font-semibold text-[#1a1a1a]">DeepRant</h3>
+    <aside className="app-sidebar">
+      <div className="app-brand">
+        <img src={appIcon} alt="DeepRant" width="36" height="36" draggable={false} className="rounded-xl" />
+        <strong>DeepRant</strong>
+      </div>
+      <nav aria-label={locale === 'en' ? 'Main navigation' : '主导航'}>
+        {sidebarItems.map(item => <Fragment key={item.id}>
+          {item.id === 'translate' && <hr className="nav-divider" />}
+          <NavButton className="workspace-nav" active={activeItem === item.id}
+            aria-current={activeItem === item.id ? 'page' : undefined}
+            icon={<item.icon size={18} aria-hidden="true" />} onClick={() => setActiveItem(item.id)}>
+            {locale === 'en' ? item.english : item.name}
+          </NavButton>
+        </Fragment>)}
+      </nav>
+      <div className="sidebar-bottom">
+        <NavButton className="workspace-nav" active={activeItem === 'user'} icon={<UserRectangle size={18} aria-hidden="true" />}
+          onClick={() => setActiveItem('user')}>{locale === 'en' ? 'Not signed in' : '未登录'}</NavButton>
+        <div className="flex gap-1 px-3 pt-3" role="group" aria-label="Interface language">
+          {['zh', 'en'].map(lang => <Button key={lang} size="small" variant={locale === lang ? 'selected' : 'ghost'}
+            disabled={!settings} aria-pressed={locale === lang}
+            onClick={() => updateSettings({ ui_language: lang }).catch(showError)}>{lang === 'zh' ? '中文' : 'English'}</Button>)}
         </div>
       </div>
-      <nav className="flex-1 px-2 py-2" aria-label={locale === 'en' ? 'Main navigation' : '主导航'}>
-        {sidebarItems.map(item => {
-          const isActive = activeItem === item.id;
-          return <button type="button" key={item.id} onClick={() => setActiveItem(item.id)}
-            aria-current={isActive ? 'page' : undefined} className="relative block w-full text-left">
-            {isActive && <motion.div layoutId="activeTab"
-              className="absolute inset-0 bg-white rounded-lg shadow-[0_4px_8px_-2px_rgba(0,0,0,0.08)]"
-              initial={false} transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
-            <div className={twMerge('flex items-center px-3.5 py-2.5 cursor-pointer', 'text-[14px] font-medium relative z-10',
-              isActive ? 'text-[#1a1a1a] font-semibold' : 'text-[#666666] hover:text-[#1a1a1a]')}>
-              <item.icon className={twMerge('w-[18px] h-[18px] mr-3', isActive ? 'stroke-[#1a1a1a]' : 'stroke-[#666666]')} />
-              {locale === 'en' ? item.english : item.name}
-            </div>
-          </button>;
-        })}
-      </nav>
-      <div className="flex gap-1 px-5 pb-4" aria-label="Interface language">
-        {['zh', 'en'].map(lang => <button type="button" key={lang} disabled={!settings} aria-pressed={locale === lang}
-          className={`px-2 py-1 rounded-md text-xs transition-colors ${locale === lang ? 'bg-white text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
-          onClick={() => updateSettings({ ui_language: lang }).catch(showError)}>{lang === 'zh' ? '中文' : 'English'}</button>)}
-      </div>
-      <div className="px-2 pb-3">
-        <button type="button" onClick={() => setActiveItem('user')}
-          className="w-full flex items-center px-3.5 py-2.5 text-[#666666] hover:text-[#1a1a1a]">
-          <UserUser01 className="w-[18px] h-[18px] mr-3 stroke-[#666666]" />
-          <span className="text-[14px] font-medium">{locale === 'en' ? 'Not signed in' : '未登录'}</span>
-        </button>
-      </div>
-    </div>
+    </aside>
   );
 }

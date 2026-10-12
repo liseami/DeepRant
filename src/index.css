@@ -1,49 +1,77 @@
 /**
- * [INPUT]: 依赖 Tailwind 4 的预检、工具类与项目配置
- * [OUTPUT]: 提供原版全局视觉，以及快捷键录制和更新提示的局部样式
- * [POS]: 页面通过原版 Tailwind 类表达外观，全局规则不覆盖页面表单和按钮
+ * [INPUT]: 依赖 Tailwind 4、Cromma UI 主题和 CCBaga 的 Laper 应用壳布局参数
+ * [OUTPUT]: 提供同款斜纹外框、点阵标题、细线工作面与共享模态位置
+ * [POS]: 应用布局层；控件边缘、高光、圆角和动效取 Cromma UI，不另造按钮皮肤
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 @import "tailwindcss";
+@import "cromma-ui/theme.css";
 @config "../tailwind.config.js";
+@source "../vendor/cromma-ui/src";
 
-button:not(:disabled) { cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .55; }
-:focus-visible { outline: 2px solid #a1a1aa; outline-offset: 3px; }
-
-/* -------- 翻译卡片使用共享录制器，保持原版整卡点击和底部按键位置 -------- */
-.game-hotkey-card > .hotkey-button {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  padding: 24px;
-  display: flex;
-  align-items: flex-end;
-  text-align: left;
-  border-radius: 16px;
-  font-size: 24px;
-  line-height: 1.25;
-  font-weight: 600;
-  color: #18181b;
-  background: transparent;
+:root {
+  --primary: var(--foreground);
+  --primary-foreground: var(--panel);
+  --destructive: var(--foreground);
+  --destructive-foreground: var(--panel);
+  --ring: var(--foreground);
+  --foreground: #171717;
+  --muted-foreground: #747474;
+  --border: #dededb;
+  --panel: #fff;
+  --background: #fff;
+  --accent: #f2f2ef;
+  --muted: #f3f3f0;
+  --input: #fafaf9;
+  --panel-outline: #dededb;
+  --landing-band: 16px;
+  --landing-line: color-mix(in srgb, var(--border) 82%, transparent);
+  --landing-hatch-line: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --landing-hatch: repeating-linear-gradient(-45deg, transparent 0 5px, var(--landing-hatch-line) 5px 6px);
+  --landing-dots: radial-gradient(color-mix(in srgb, var(--muted-foreground) 20%, transparent) 1px, transparent 1px);
+  --panel-header-height: 48px;
+  --panel-header-title-size: 13px;
+  --panel-header-title-weight: 600;
 }
+html, body, #root { height: 100%; overflow: hidden; }
+body { user-select: none; }
+button, input, textarea { -webkit-app-region: no-drag; }
+button:not(:disabled), summary { cursor: pointer; }
+button:disabled { cursor: default; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+svg { flex-shrink: 0; }
+input, textarea, code { user-select: text; }
 
-/* -------- 常驻更新通知仅在有更新时出现，不改变主界面结构 -------- */
-.update-notice {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 40;
-  max-width: 460px;
-  padding: 24px;
-  border: 1px solid #e4e4e7;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 12px 50px #0002;
-}
+/* -------- CCBaga 同款应用外框与侧栏，游戏菜单内容保持 DeepRant 原流程 -------- */
+.app-shell { display: flex; height: 100vh; padding: var(--landing-band); gap: var(--landing-band); background-color: var(--background); background-image: var(--landing-hatch); }
+.app-sidebar { --sidebar: #fff; --sidebar-accent: #ededeb; display: flex; flex-direction: column; width: 240px; flex-shrink: 0; background: var(--sidebar); overflow: hidden; border: 1px solid var(--landing-line); }
+.app-brand { display: flex; gap: 10px; align-items: center; height: 72px; flex-shrink: 0; padding: 0 12px 0 22px; }
+.app-brand img { object-fit: cover; flex-shrink: 0; }
+.app-brand strong { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+.app-sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; margin-top: 4px; overflow-y: auto; }
+.workspace-nav { height: 40px; gap: 8px; padding: 0 12px 0 8px; border: 0; overflow: hidden; transition-duration: 300ms; transition-timing-function: ease-out; }
+.workspace-nav > span:first-child > svg { width: 22px; height: 22px; }
+.workspace-nav > span:last-child { font-size: 14px; line-height: 20px; }
+.nav-divider { margin: 12px 8px; border: 0; border-top: 1px solid var(--border); }
+.sidebar-bottom { margin-top: auto; padding: 24px 8px 12px; }
+.workspace { flex: 1; min-width: 0; }
+.workspace-scroll { flex: 1; min-height: 0; overflow: auto; padding: 24px; }
+
+/* -------- 同源点阵只归标题，斜纹只归分隔带，业务控件使用组件库 -------- */
+.workspace-title { position: relative; isolation: isolate; min-height: 104px; margin: -24px -24px 24px; padding: 24px; display: flex; flex-direction: column; justify-content: center; gap: 8px; border-bottom: 1px solid var(--landing-line); background: var(--background); }
+.workspace-title::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: var(--landing-dots), radial-gradient(ellipse at 22% 42%,color-mix(in srgb,var(--primary) 7%,transparent) 0 14%,transparent 36%), radial-gradient(ellipse at 75% 22%,color-mix(in srgb,var(--primary) 6%,transparent) 0 12%,transparent 33%); background-size: 7px 7px,100% 100%,100% 100%; opacity: .55; mask-image: linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent); }
+.workspace-title::after { content: ''; position: absolute; inset-inline: 0; height: var(--landing-band); bottom: calc(-1 * var(--landing-band)); border-bottom: 1px solid var(--landing-line); background-image: var(--landing-hatch); pointer-events: none; }
+.landing-section-band { height: var(--landing-band); flex-shrink: 0; border-block: 1px solid var(--landing-line); background-image: var(--landing-hatch); }
+
+/* -------- 自定义场景沿 CCBaga Radix + ModalShell 边界 -------- */
+.app-dialog-overlay { position: fixed; inset: 0; z-index: 1000; background: #00000025; animation: dialog-fade var(--motion-quick) var(--ease-motion); }
+.app-dialog-position { position: fixed; z-index: 1001; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 40px); outline: none; }
+@keyframes dialog-fade { from { opacity: 0; } }
+
+/* -------- 常驻更新通知保留旧边界；控件主题由组件迁移后同源 -------- */
+.update-notice { position: fixed; bottom: 24px; right: 24px; z-index: 40; max-width: 460px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--panel); box-shadow: var(--shadow-surface-panel); }
 .update-notice h2 { margin-bottom: 12px; font-size: 18px; font-weight: 600; }
-.update-notice p { color: #52525b; font-size: 14px; }
+.update-notice p { color: var(--muted-foreground); font-size: 14px; }
 .update-notice .actions { display: flex; gap: 10px; margin-top: 16px; }
-.update-notice button { padding: 8px 14px; border-radius: 8px; background: #f4f4f5; font-size: 14px; }
-.update-notice button:hover { background: #e4e4e7; }
-.update-notice button.primary { background: #18181b; color: white; }
+@media (max-width: 1000px) { .app-sidebar { width: 208px; } }
+@media (prefers-reduced-motion: reduce) { .app-dialog-overlay { animation: none; } }
