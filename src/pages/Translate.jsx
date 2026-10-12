@@ -64,8 +64,8 @@ export default function Translate() {
                             <SidebarButton look="wash" active={active} aria-pressed={active} disabled={changingMode} onClick={() => changeMode(id)}
                                 className="h-full min-h-48 flex-col items-stretch gap-5 rounded-none border-0 p-5">
                                 <span className="flex items-center justify-between">
-                                    <Icon size={24} aria-hidden="true" />
-                                    {active ? <CheckTickCircle size={18} aria-hidden="true" /> : <span aria-hidden="true" className="size-[18px] rounded-full border border-border" />}
+                                    <Icon size={18} aria-hidden="true" />
+                                    <CheckTickCircle size={18} aria-hidden="true" className={active ? '' : 'opacity-0'} />
                                 </span>
                                 <span className="flex flex-col gap-2">
                                     <span className="text-lg font-semibold">{name[chinese ? 0 : 1]}</span>
