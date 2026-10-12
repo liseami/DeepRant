@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
 import { GAMES } from '../src/data/scenes.js';
 import { LANGUAGES } from '../src/data/languages.js';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -36,4 +37,12 @@ test('webview cannot persist keys or execute platform scripts', () => {
   assert.ok(!permissions.some((p) => typeof p === 'string' && /^(shell|store|global-shortcut):/.test(p)));
   assert.ok(!read('src/components/StoreProvider.jsx').includes('@tauri-apps/plugin-store'));
   assert.ok(!read('src/pages/Settings.jsx').includes('fetch('));
+});
+
+test('original game recording and preview remain byte-for-byte intact', () => {
+  for (const line of read('src/assets/media.sha256').trim().split('\n')) {
+    const [expected, path] = line.split('  ');
+    const bytes = readFileSync(new URL(`../${path}`, import.meta.url));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), expected);
+  }
 });

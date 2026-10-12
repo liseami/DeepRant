@@ -24,6 +24,12 @@ export default function GameSceneCard() {
   const english = locale === 'en';
   const ModeIcon = isDaily ? Globe : WindowBrowser;
 
+  function closeEditor(next) {
+    if (saving) return;
+    if (!next) setDraft({ custom_scene_name: settings.custom_scene_name, custom_scene_prompt: settings.custom_scene_prompt, custom_glossary: settings.custom_glossary });
+    setOpen(next);
+  }
+
   useEffect(() => {
     setDraft({ custom_scene_name: settings.custom_scene_name, custom_scene_prompt: settings.custom_scene_prompt, custom_glossary: settings.custom_glossary });
   }, [settings.custom_scene_name, settings.custom_scene_prompt, settings.custom_glossary]);
@@ -63,10 +69,10 @@ export default function GameSceneCard() {
         </div>
       </Panel>
     </motion.div>
-    <AppDialog open={open} onOpenChange={next => { if (!saving) setOpen(next); }}
+    <AppDialog open={open} onOpenChange={closeEditor}
       title={gameId === 'custom' && !isDaily ? t('customScene') : t('glossary')}
       footer={<div className="flex justify-end gap-2">
-        <Button variant="secondary" size="medium" disabled={saving} onClick={() => setOpen(false)}>{t('cancel')}</Button>
+        <Button variant="secondary" size="medium" disabled={saving} onClick={() => closeEditor(false)}>{t('cancel')}</Button>
         <Button variant="ink" size="medium" type="submit" form={formId} loading={saving}>{t('save')}</Button>
       </div>}>
       <form id={formId} onSubmit={save}>

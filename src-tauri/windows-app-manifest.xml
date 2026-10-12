@@ -1,0 +1,13 @@
+<!--
+[INPUT]: Tauri 2.7.2 的默认 Windows Common Controls v6 依赖声明。
+[OUTPUT]: 激活 comctl32 v6，供应用与库单测 EXE 使用。
+[POS]: MSVC 链接器直接嵌入此片段，避免只给主程序提供 manifest。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency><dependentAssembly>
+    <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls"
+      version="6.0.0.0" processorArchitecture="*"
+      publicKeyToken="6595b64144ccf1df" language="*" />
+  </dependentAssembly></dependency>
+</assembly>

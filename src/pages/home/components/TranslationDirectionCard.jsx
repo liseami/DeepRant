@@ -7,18 +7,18 @@
 
 import { Panel, PanelHeader, PanelAction, Select, motion, MOTION } from 'cromma-ui';
 import { Translate, Refresh, ArrowRight } from 'cromma-ui/pika';
-import * as FlagIcons from 'country-flag-icons/react/3x2';
+import { CN, US, GB, SG, KR, JP, RU, FR, ES, DE, BR } from 'country-flag-icons/react/3x2';
 import { useStore } from '../../../components/StoreProvider';
 import { LANGUAGES, languageName } from '../../../data/languages';
 import { showError } from '../../../utils/toast';
 
-const FLAG_CODES = { zh: 'CN', en: 'US', 'en-GB': 'GB', 'en-SEA': 'SG', ko: 'KR', ja: 'JP', ru: 'RU', fr: 'FR', es: 'ES', de: 'DE', pt: 'PT' };
+const FLAGS = { zh: CN, en: US, 'en-GB': GB, 'en-SEA': SG, ko: KR, ja: JP, ru: RU, fr: FR, es: ES, de: DE, pt: BR };
 
 export default function TranslationDirectionCard() {
   const { settings, updateSettings, locale, t } = useStore();
   const english = locale === 'en';
   const items = Object.keys(LANGUAGES).map(value => {
-    const Flag = FlagIcons[FLAG_CODES[value]];
+    const Flag = FLAGS[value];
     return { value, label: <span className="inline-flex items-center gap-2">
       {Flag && <Flag aria-hidden="true" className="w-4 h-3 rounded-sm shrink-0" />}{languageName(value, locale)}
     </span> };

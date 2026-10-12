@@ -1,8 +1,8 @@
 # DeepRant - 桌面游戏与日常聊天翻译工具
-Tauri 2.12.3 + Rust 1.98.1 + React 18 + Vite 8.3.4 + Tailwind CSS 4.3.3
+Tauri 2.12.3 + Rust 1.98.1 + React 19.3.0 + Cromma UI / Laper App + Pika + Vite 8.3.4 + Tailwind CSS 4.3.3
 <directory>
 vendor/ - CCBaga 同款 Cromma UI / Laper App 控件、主题与 Pika 图标的本地依赖
-src/ - WebView 交互、设置缓存与手动翻译 (5 子目录: components、pages、data、utils、assets)
+src/ - 游戏内翻译、表达模式与设置交互 (5 子目录: components、pages、data、utils、assets)
 public/ - 浏览器入口的轻量品牌图标，与 src/assets/ 展示副本同源
 src-tauri/ - 原生输入、设置、模型请求与桌面生命周期 (3 子目录: src、capabilities、icons)
 docs/ - issue / PR 的架构归类和处理落点

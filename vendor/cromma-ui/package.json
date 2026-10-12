@@ -9,8 +9,8 @@
     "./pika": "./src/pika/index.ts"
   },
   "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18",
+    "react": ">=19",
+    "react-dom": ">=19",
     "radix-ui": "1.6.7",
     "motion": "14.0.0",
     "clsx": "2.1.1",

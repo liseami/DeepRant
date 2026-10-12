@@ -6,3 +6,5 @@
 package.json: 本地包入口、子路径导出和对齐源项目的运行依赖版本。
 src/: 主题、组件与 Pika 图标的导出实现。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+运行时契约: 与 CCBaga 保持 React 19 的 ref prop 语义，Radix asChild 的引用由组件透传到原生控件。

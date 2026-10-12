@@ -1,6 +1,6 @@
 # DeepRant 2.0.0
 
-- 升级至 Tauri 2.12.3 / CLI 2.12.2，Vite 8.3.4 和 Tailwind CSS 4.3.3；移除脚本注入、账号及订阅空壳。
+- 升级至 Tauri 2.12.3 / CLI 2.12.2，Vite 8.3.4 和 Tailwind CSS 4.3.3；移除脚本注入与失实共享额度。原游戏界面骨架、开发者页和录屏保留，视觉使用 CCBaga 同源 Laper App 组件 / Pika 系统。
 - DeepSeek Flash (`deepseek-flash`) / Pro (`deepseek-v4-pro`)、OpenAI 兼容 API、Anthropic Messages 与本地 Ollama 共用原生请求管道。支持 Base URL 自动归一，超时与 HTTP/空响应/解析失败诊断，仅输出最终文本。
 - 自用 Key 存入系统凭据库，前端不读回密钥。旧配置安全迁移；不再提供内置共享 Key。
 - 原生输入等待修饰键释放，检测复制成功、焦点和原文变化，拒绝并发触发；翻译失败保留原文，状态不污染聊天。部分游戏阻止复制或模拟输入时，请使用新增手动翻译页。

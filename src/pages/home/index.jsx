@@ -20,14 +20,20 @@ export default function Home() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    let visible = false;
+    const playback = () => {
+      if (visible && !document.hidden) video.play().catch(() => {});
+      else video.pause();
+    };
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) video.play().catch(() => {});
-        else video.pause();
+        visible = entry.isIntersecting;
+        playback();
       });
     }, { threshold: 0.5 });
     observer.observe(video);
-    return () => { observer.disconnect(); video.pause(); };
+    document.addEventListener('visibilitychange', playback);
+    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', playback); video.pause(); };
   }, []);
 
   return (

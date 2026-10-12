@@ -59,6 +59,7 @@ input, textarea, code { user-select: text; }
 
 /* -------- 同源点阵只归标题，斜纹只归分隔带，业务控件使用组件库 -------- */
 .workspace-title { position: relative; isolation: isolate; min-height: 104px; margin: -24px -24px 24px; padding: 24px; display: flex; flex-direction: column; justify-content: center; gap: 8px; border-bottom: 1px solid var(--landing-line); background: var(--background); }
+.workspace-title h1 { margin: 0; font-size: 28px; font-weight: 500; letter-spacing: -1px; line-height: 1.35; }
 .workspace-title::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: var(--landing-dots), radial-gradient(ellipse at 22% 42%,color-mix(in srgb,var(--primary) 7%,transparent) 0 14%,transparent 36%), radial-gradient(ellipse at 75% 22%,color-mix(in srgb,var(--primary) 6%,transparent) 0 12%,transparent 33%); background-size: 7px 7px,100% 100%,100% 100%; opacity: .55; mask-image: linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent); }
 .workspace-title::after { content: ''; position: absolute; inset-inline: 0; height: var(--landing-band); bottom: calc(-1 * var(--landing-band)); border-bottom: 1px solid var(--landing-line); background-image: var(--landing-hatch); pointer-events: none; }
 .landing-section-band { height: var(--landing-band); flex-shrink: 0; border-block: 1px solid var(--landing-line); background-image: var(--landing-hatch); }
@@ -68,10 +69,5 @@ input, textarea, code { user-select: text; }
 .app-dialog-position { position: fixed; z-index: 1001; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 40px); outline: none; }
 @keyframes dialog-fade { from { opacity: 0; } }
 
-/* -------- 常驻更新通知保留旧边界；控件主题由组件迁移后同源 -------- */
-.update-notice { position: fixed; bottom: 24px; right: 24px; z-index: 40; max-width: 460px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--panel); box-shadow: var(--shadow-surface-panel); }
-.update-notice h2 { margin-bottom: 12px; font-size: 18px; font-weight: 600; }
-.update-notice p { color: var(--muted-foreground); font-size: 14px; }
-.update-notice .actions { display: flex; gap: 10px; margin-top: 16px; }
 @media (max-width: 1000px) { .app-sidebar { width: 208px; } }
 @media (prefers-reduced-motion: reduce) { .app-dialog-overlay { animation: none; } }
