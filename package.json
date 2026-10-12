@@ -19,9 +19,16 @@
     "@tauri-apps/plugin-opener": "2.7.1",
     "@tauri-apps/plugin-process": "2.4.0",
     "@tauri-apps/plugin-updater": "2.13.3",
+    "clsx": "2.1.1",
+    "country-flag-icons": "1.6.20",
+    "cromma-ui": "file:vendor/cromma-ui",
+    "framer-motion": "14.0.0",
+    "motion": "14.0.0",
+    "radix-ui": "1.6.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-hot-toast": "^2.5.1"
+    "react-hot-toast": "^2.5.1",
+    "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
