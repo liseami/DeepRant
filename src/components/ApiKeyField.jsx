@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖 Cromma UI、公开服务标识及仅主窗口可用的 read_api_key 命令
- * [OUTPUT]: 提供可显隐的真实 Key 输入与 useApiKey 局部凭据读取状态
+ * [OUTPUT]: 提供可显隐的真实 Key 输入与局部读取、草稿原值对照；晚到读取不覆盖新编辑
  * [POS]: 顶部首次配置与模型设置共用的凭据交互；切换服务清理旧值，Key 不进入共享设置或日志
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Button, Input } from 'cromma-ui';
 import { ShieldCheck } from 'cromma-ui/pika';
@@ -14,27 +14,35 @@ import { useStore } from './StoreProvider';
 export function useApiKey(apiUrl, protocol, hasApiKey) {
   const serviceId = `${protocol || 'openai'}:${apiUrl || ''}`;
   const [revision, setRevision] = useState(0);
-  const [state, setState] = useState({ serviceId, value: '', reading: false, error: '' });
+  const edits = useRef(0);
+  const [state, setState] = useState({ serviceId, value: '', savedValue: '', reading: Boolean(hasApiKey), error: '' });
 
   useEffect(() => {
     let active = true;
     if (!hasApiKey) {
-      setState({ serviceId, value: '', reading: false, error: '' });
+      setState({ serviceId, value: '', savedValue: '', reading: false, error: '' });
       return () => { active = false; };
     }
-    setState(current => ({ serviceId, value: current.serviceId === serviceId ? current.value : '', reading: true, error: '' }));
+    const started = edits.current;
+    setState(current => ({ serviceId, value: current.serviceId === serviceId ? current.value : '', savedValue: current.serviceId === serviceId ? current.savedValue : '', reading: true, error: '' }));
     invoke('read_api_key', { apiUrl, protocol: protocol || 'openai' })
-      .then(value => { if (active) setState({ serviceId, value: value || '', reading: false, error: '' }); })
+      .then(value => {
+        if (active) setState(current => ({ serviceId, value: edits.current === started ? value || '' : current.value, savedValue: value || '', reading: false, error: '' }));
+      })
       .catch(failure => { if (active) setState(current => ({ ...current, reading: false, error: String(failure) })); });
     return () => { active = false; };
   }, [apiUrl, protocol, hasApiKey, revision, serviceId]);
 
   // -------- 同一渲染中隔离旧服务，避免 effect 执行前短暂展示或提交旧 Key --------
-  const current = state.serviceId === serviceId ? state : { value: '', reading: Boolean(hasApiKey), error: '' };
+  const current = state.serviceId === serviceId ? state : { value: '', savedValue: '', reading: Boolean(hasApiKey), error: '' };
   return {
     ...current,
     serviceId,
-    setValue: value => setState({ serviceId, value, reading: false, error: '' }),
+    changed: Boolean(current.value.trim()) && current.value.trim() !== current.savedValue,
+    setValue: value => {
+      edits.current += 1;
+      setState(previous => ({ serviceId, value, savedValue: previous.serviceId === serviceId ? previous.savedValue : '', reading: false, error: '' }));
+    },
     reload: () => setRevision(value => value + 1),
   };
 }

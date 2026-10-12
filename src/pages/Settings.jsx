@@ -50,7 +50,7 @@ export default function Settings() {
         try {
             const saved = await updateSettings({ model_type: draft.model_type, custom_model: {
                 api_url: draft.api_url.trim(), model_name: draft.model_name.trim(), protocol: draft.protocol, reasoning_model: Boolean(draft.reasoning_model),
-                ...(credential.value.trim() && !isLocal ? { auth: credential.value.trim() } : {}),
+                ...(credential.changed && !isLocal ? { auth: credential.value.trim() } : {}),
             } });
             credential.reload();
             if (test) {
