@@ -31,3 +31,4 @@ export { default as InformationCircle } from "./icons/InformationCircle";
 export { default as PlusDefault } from "./icons/PlusDefault";
 export { default as CrownWinnerKing } from "./icons/CrownWinnerKing";
 export { default as StarFilled } from "./icons/StarFilled";
+export { default as LightningThunderElectricOn } from "./icons/LightningThunderElectricOn";

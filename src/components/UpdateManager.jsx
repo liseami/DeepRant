@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Tauri updater / process、托盘更新事件和关于页的检查请求
+ * [INPUT]: 依赖 Tauri updater / process、Cromma UI 控件、托盘更新事件和关于页请求
  * [OUTPUT]: 提供更新发现、累计下载进度、明确安装按钮与重启操作
  * [POS]: 常驻更新控制边界，未安装的 Update 资源在关闭时释放
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { Panel, Button } from 'cromma-ui';
 import { useStore } from './StoreProvider';
 import { showError, showSuccess } from '../utils/toast';
 import { UPDATE_EVENT } from '../utils/updater';
@@ -85,15 +86,15 @@ export default function UpdateManager() {
   }
 
   if (!status) return null;
-  return <section className="card update-notice" role="status" aria-live="polite">
+  return <Panel className="fixed bottom-6 right-6 z-50 max-w-md p-6 shadow-lg" role="status" aria-live="polite">
     <h2>{t(status === 'checking' ? 'checkingUpdates' : status === 'downloading' ? 'downloadingUpdate' : status === 'installed' ? 'updateInstalled' : 'updateAvailable')}</h2>
     {update && <p>{t('version')} {update.version}</p>}
     {status === 'available' && update?.body && <p className="note" style={{ whiteSpace: 'pre-wrap', maxHeight: 140, overflow: 'auto', marginTop: 10 }}>{update.body}</p>}
     {status === 'downloading' && percent !== null && <p>{percent}%</p>}
-    <div className="actions">
-      {status === 'available' && <button type="button" className="primary" onClick={install}>{t('installUpdate')}</button>}
-      {status === 'installed' && <button type="button" className="primary" onClick={() => relaunch().catch(showError)}>{t('restartApp')}</button>}
-      {status === 'available' && <button type="button" onClick={dismiss}>{t('cancel')}</button>}
+    <div className="mt-4 flex items-center gap-2">
+      {status === 'available' && <Button type="button" variant="ink" onClick={install}>{t('installUpdate')}</Button>}
+      {status === 'installed' && <Button type="button" variant="ink" onClick={() => relaunch().catch(showError)}>{t('restartApp')}</Button>}
+      {status === 'available' && <Button type="button" variant="secondary" onClick={dismiss}>{t('cancel')}</Button>}
     </div>
-  </section>;
+  </Panel>;
 }

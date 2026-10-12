@@ -8,4 +8,5 @@ DropdownMenu.jsx: 原版浮动选项菜单，被语言与游戏卡片消费，�
 HotkeyRecorder.jsx: KeyboardEvent.code 录制边界，暂停已有快捷键，注册交给后端。
 BackgroundStatus.jsx: Tauri 输入事件桥，在全部页面展示统一进度和启动注册错误。
 UpdateManager.jsx: 常驻更新流程，先检查并展示版本，用户点击后安装，释放未使用资源。
+DeveloperNote.jsx: 原开发者社交/课程区，沿同款组件保留准确产品说明。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

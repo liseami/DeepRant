@@ -29,4 +29,5 @@ InformationCircle.tsx: Pika 同源图标，用于游戏翻译的操作语义，�
 PlusDefault.tsx: Pika 同源图标，用于游戏翻译的操作语义，保留生成组件几何。
 CrownWinnerKing.tsx: Pika 同源图标，用于游戏翻译的操作语义，保留生成组件几何。
 StarFilled.tsx: Pika 同源图标，用于游戏翻译的操作语义，保留生成组件几何。
+LightningThunderElectricOn.tsx: 能量入口的同源闪电图标，保持原导航语义。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
