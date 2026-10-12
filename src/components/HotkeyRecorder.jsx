@@ -34,7 +34,9 @@ export default function HotkeyRecorder({ hotkey, onSave, disabled = false, label
   }
 
   useEffect(() => () => {
-    if (active.current) invoke('set_shortcuts_paused', { paused: false }).catch(showError);
+    const wasActive = active.current;
+    active.current = false;
+    if (wasActive) invoke('set_shortcuts_paused', { paused: false }).catch(showError);
   }, []);
 
   function keyDown(event) {
