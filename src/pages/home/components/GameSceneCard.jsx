@@ -1,112 +1,49 @@
 /**
- * [INPUT]: 依赖 GAMES from data/scenes；依赖 I18N；依赖 useStore 的 game_scene / daily_mode / custom_scene_*
- * [OUTPUT]: 提供游戏场景选择、日常模式开关、自定义场景名称与提示词
- * [POS]: 首页三卡之一。只读 scenes.js，不维护本地名单。
+ * [INPUT]: 依赖场景目录与 StoreProvider 的游戏 / 日常 / 自定义提示词设置
+ * [OUTPUT]: 提供语境选择、自定义说明及统一术语表编辑
+ * [POS]: 主页语境配置入口，游戏 ID 和提示词的解释权留在 Rust
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { GamingPad, Repeat01, IMac } from '../../../icons';
 import { useStore } from '../../../components/StoreProvider';
-import DropdownMenu from '../../../components/DropdownMenu';
-import { GAMES } from '../../../data/scenes.js';
-import { I18N, uiLocale } from '../../../data/i18n.js';
+import { GAMES, sceneName } from '../../../data/scenes';
+import { showError, showSuccess } from '../../../utils/toast';
 
 export default function GameSceneCard() {
-    const [showMenu, setShowMenu] = useState(false);
-    const [gameName, setGameName] = useState('');
-    const { settings, updateSettings } = useStore();
+  const { settings, updateSettings, t, locale } = useStore();
+  const [draft, setDraft] = useState({ custom_scene_name: settings.custom_scene_name, custom_scene_prompt: settings.custom_scene_prompt, custom_glossary: settings.custom_glossary });
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setDraft({ custom_scene_name: settings.custom_scene_name, custom_scene_prompt: settings.custom_scene_prompt, custom_glossary: settings.custom_glossary }); },
+    [settings.custom_scene_name, settings.custom_scene_prompt, settings.custom_glossary]);
 
-    const gameId = settings?.game_scene || 'lol';
-    const isDaily = settings?.daily_mode || false;
-    const isCustom = gameId === 'custom';
-    const labels = I18N[uiLocale(settings?.ui_language)].card;
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    try { await updateSettings(draft); showSuccess(t('saved')); }
+    catch (failure) { showError(failure); }
+    finally { setSaving(false); }
+  }
 
-    useEffect(() => {
-        setGameName(GAMES[gameId] || GAMES.lol);
-    }, [gameId]);
-
-    const handleGameSelect = async (nextGameId) => {
-        setShowMenu(false);
-        await updateSettings({ game_scene: nextGameId });
-    };
-
-    const toggleDailyMode = async () => {
-        await updateSettings({ daily_mode: !isDaily });
-    };
-
-    return (
-        <motion.div
-            className="relative h-full flex flex-col bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-sm text-zinc-500">
-                    {isDaily ? (
-                        <IMac className="w-6 h-6 stroke-zinc-500" />
-                    ) : (
-                        <GamingPad className="w-6 h-6 stroke-zinc-500" />
-                    )}
-                    {isDaily ? labels.daily_mode : labels.game_mode}
-                </div>
-                <div className="flex flex-col items-end">
-                    <button
-                        onClick={toggleDailyMode}
-                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm transition-colors ${isDaily
-                            ? 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
-                            : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-                            }`}
-                    >
-                        <span> {isDaily ? labels.game_mode : labels.daily_mode}</span>
-                        <Repeat01 className="w-4 h-4 text-zinc-600 hover:text-zinc-600 transition-colors" />
-                    </button>
-                </div>
-            </div>
-            <div className="flex-1 flex flex-col justify-between mt-4">
-                <div className="text-sm text-zinc-400">
-                    {isDaily ? '划词翻译' : ' 合适的游戏场景选择，能保证翻译时更加符合游戏语境，如Moba类游戏中的推塔、gank，fps游戏中的rush等。'}
-
-                </div>
-                {!isDaily && (
-                    <div className="relative space-y-3">
-                        <button
-                            onClick={() => setShowMenu(true)}
-                            className="px-4 py-1.5 rounded-lg bg-zinc-50 hover:bg-[#EAEAEA] transition-colors text-2xl font-semibold text-zinc-900 dark:text-white"
-                        >
-                            {gameName}
-                        </button>
-                        <DropdownMenu
-                            show={showMenu}
-                            onClose={() => setShowMenu(false)}
-                            options={GAMES}
-                            currentValue={gameId}
-                            onSelect={handleGameSelect}
-                        />
-
-                        {/* -------- 自定义场景 -------- */}
-                        {isCustom && (
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    value={settings?.custom_scene_name || ''}
-                                    onChange={(e) => updateSettings({ custom_scene_name: e.target.value })}
-                                    placeholder="场景名称，如 自定义二游"
-                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300"
-                                />
-                                <textarea
-                                    value={settings?.custom_scene_prompt || ''}
-                                    onChange={(e) => updateSettings({ custom_scene_prompt: e.target.value })}
-                                    placeholder="语境/对照说明"
-                                    rows={3}
-                                    className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 resize-none"
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-        </motion.div>
-    );
+  return <section className="card">
+    <h2>{t('scene')}</h2>
+    <label className="check-label"><input type="checkbox" checked={settings.daily_mode}
+      onChange={event => updateSettings({ daily_mode: event.target.checked }).catch(showError)} />{t('dailyMode')}</label>
+    <p className="note" style={{ marginTop: 12 }}>{t(settings.daily_mode ? 'dailyHelp' : 'gameHelp')}</p>
+    {!settings.daily_mode && <label style={{ marginTop: 16 }}>{t('game')}<select value={settings.game_scene}
+      onChange={event => updateSettings({ game_scene: event.target.value }).catch(showError)}>
+      {Object.keys(GAMES).map(id => <option key={id} value={id}>{sceneName(id, locale)}</option>)}
+    </select></label>}
+    <form onSubmit={save} style={{ marginTop: 18 }}><fieldset disabled={saving} className="page-stack" style={{ gap: 14 }}>
+      {!settings.daily_mode && settings.game_scene === 'custom' && <>
+        <label>{t('sceneName')}<input value={draft.custom_scene_name || ''} maxLength={120}
+          onChange={event => setDraft({ ...draft, custom_scene_name: event.target.value })} /></label>
+        <label>{t('scenePrompt')}<textarea value={draft.custom_scene_prompt || ''} rows={3} maxLength={12000} placeholder={t('scenePlaceholder')}
+          onChange={event => setDraft({ ...draft, custom_scene_prompt: event.target.value })} /></label>
+      </>}
+      <label>{t('glossary')}<textarea value={draft.custom_glossary || ''} rows={3} maxLength={12000}
+        onChange={event => setDraft({ ...draft, custom_glossary: event.target.value })} /><small>{t('glossaryHelp')}</small></label>
+      <div><button type="submit">{t(saving ? 'saving' : 'save')}</button></div>
+    </fieldset></form>
+  </section>;
 }
