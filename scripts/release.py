@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# [INPUT]: 锁定源码、release 版本、Developer ID / Apple 公证凭据和更新签名私钥。
+# [INPUT]: 锁定源码、release 版本、哈希锁定 dmgbuild、Developer ID / Apple 公证凭据和更新签名私钥。
 # [OUTPUT]: 最终公证 DMG / 更新归档或 Windows 安装器，以及平台更新清单和 SHA-256。
-# [POS]: 沿用 CCBaga 的先公证装订、再签最终更新字节顺序；构建环境隔离签名凭据。
+# [POS]: 沿用 CCBaga 无头 Finder 安装盘与先公证装订、再签最终更新字节顺序；所有打包子进程隔离签名凭据。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 from datetime import datetime, timezone
 import hashlib
@@ -75,39 +75,9 @@ def main():
             run('spctl', '--assess', '--type', 'execute', host)
             # ----- 更新归档必须包含已经装订的应用，生成后不再改写 -----
             update = OUTPUT / f'DeepRant-{version}-macos-{arch}.app.tar.gz'
-            with tarfile.open(update, 'w:gz') as bundle:
+            with tarfile.open(update, 'w:gz', dereference=False) as bundle:
                 bundle.add(host, arcname=host.name)
-            stage = work / 'stage'
-            stage.mkdir()
-            run('ditto', host, stage / host.name)
-            (stage / 'Applications').symlink_to('/Applications')
-            dmg = OUTPUT / f'DeepRant-{version}-macos-{arch}.dmg'
-            run('hdiutil', 'create', '-volname', 'DeepRant', '-srcfolder', stage,
-                '-ov', '-format', 'UDZO', dmg)
-            run('codesign', '--force', '--sign', identity, '--timestamp', dmg)
-            notarize(dmg, dmg)
-            run('spctl', '--assess', '--type', 'open', '--context', 'context:primary-signature', dmg)
-            # ----- 验收用户实际下载的容器载荷，不只验证构建目录里的应用 -----
-            mount = work / 'mounted'
-            run('hdiutil', 'attach', '-readonly', '-nobrowse', '-mountpoint', mount, dmg)
-            try:
-                import plistlib
-                mounted_host = mount / 'DeepRant.app'
-                with (mounted_host / 'Contents/Info.plist').open('rb') as stream:
-                    info = plistlib.load(stream)
-                if info['CFBundleIdentifier'] != config['identifier'] or info['CFBundleShortVersionString'] != version:
-                    raise SystemExit('DMG application identifier/version mismatch')
-                executable = mounted_host / 'Contents/MacOS' / info['CFBundleExecutable']
-                expected_arch = 'arm64' if arch == 'arm64' else 'x86_64'
-                run('lipo', '-verify_arch', expected_arch, executable)
-                if not (mount / 'Applications').is_symlink() or os.readlink(mount / 'Applications') != '/Applications':
-                    raise SystemExit('DMG is missing the Applications install link')
-                run('codesign', '--verify', '--deep', '--strict', mounted_host)
-                run('xcrun', 'stapler', 'validate', mounted_host)
-                run('spctl', '--assess', '--type', 'execute', mounted_host)
-            finally:
-                run('hdiutil', 'detach', mount)
-            # ----- 检查最终更新归档解包后的签名与票据 -----
+            # ----- 先验最终更新归档，再以版本签名；安装盘布局不改应用内部 -----
             verify = work / 'verify'
             verify.mkdir()
             with tarfile.open(update) as bundle:
@@ -115,6 +85,21 @@ def main():
             run('codesign', '--verify', '--deep', '--strict', verify / host.name)
             run('xcrun', 'stapler', 'validate', verify / host.name)
             run('spctl', '--assess', '--type', 'execute', verify / host.name)
+            run('npm', 'run', 'tauri', '--', 'signer', 'sign', '--app-version', version,
+                update, env=updater_env, capture=True)
+            stage = work / 'stage'
+            stage.mkdir()
+            run('ditto', host, stage / host.name)
+            dmg = OUTPUT / f'DeepRant-{version}-macos-{arch}.dmg'
+            # ----- 独立安全环境运行 dmgbuild，连它内部的 hdiutil 也没有 Apple / 更新私钥 -----
+            run(sys.executable, '-m', 'dmgbuild', '-s', ROOT / 'scripts/dmg-settings.py',
+                '-D', f'stage={stage}', '-D', f'root={ROOT}', '--no-hidpi', 'DeepRant', dmg)
+            expected_arch = 'arm64' if arch == 'arm64' else 'x86_64'
+            run(sys.executable, 'scripts/verify-dmg.py', dmg, '--version', version, '--arch', expected_arch)
+            run('codesign', '--force', '--sign', identity, '--timestamp', dmg)
+            notarize(dmg, dmg)
+            run(sys.executable, 'scripts/verify-dmg.py', dmg, '--version', version,
+                '--arch', expected_arch, '--notarized')
     elif target == 'x86_64-pc-windows-msvc':
         platform = 'windows-x86_64'
         run('npm', 'run', 'tauri', '--', 'build', '--ci', '--target', target,
@@ -124,10 +109,10 @@ def main():
             raise SystemExit('Expected one Windows installer')
         update = OUTPUT / f'DeepRant-{version}-windows-x86_64-setup.exe'
         shutil.copy2(installers[0], update)
+        run('npm', 'run', 'tauri', '--', 'signer', 'sign', '--app-version', version,
+            update, env=updater_env, capture=True)
     else:
         raise SystemExit('Unsupported release target')
-    run('npm', 'run', 'tauri', '--', 'signer', 'sign', '--app-version', version,
-        update, env=updater_env, capture=True)
     signature = Path(str(update) + '.sig')
     repository = config['plugins']['updater']['endpoints'][0].split('/releases/')[0]
     manifest = {
