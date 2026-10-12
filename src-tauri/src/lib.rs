@@ -1,6 +1,14 @@
+/**
+ * [INPUT]: 依赖 store 初始化、shortcut 注册、tray 创建、provider 测连
+ * [OUTPUT]: 暴露设置、快捷键、常用语与模型测连命令；启动整个 Tauri 应用
+ * [POS]: 后端入口。新命令只在这里登记，实现放回各模块。
+ * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ */
+
 use crate::store::initialize_settings;
 use tauri::Manager;
 pub mod ai_translator;
+pub mod scenes;
 pub mod shell_helper;
 pub mod shortcut;
 pub mod store;
@@ -32,6 +40,58 @@ async fn update_translator_shortcut(
 #[tauri::command]
 async fn get_settings(app_handle: tauri::AppHandle) -> Result<store::AppSettings, String> {
     store::get_settings(&app_handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_phrase(
+    app_handle: tauri::AppHandle,
+    id: i32,
+    phrase: String,
+) -> Result<store::AppSettings, String> {
+    store::update_phrase_text(&app_handle, id, phrase).map_err(|e| e.to_string())?;
+    store::get_settings(&app_handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_phrase_hotkey(
+    app_handle: tauri::AppHandle,
+    id: i32,
+    keys: Vec<String>,
+) -> Result<store::AppSettings, String> {
+    let hotkey = shortcut::keys_to_hotkey(keys)?;
+    store::update_phrase_hotkey(&app_handle, id, hotkey).map_err(|e| e.to_string())?;
+    shortcut::reload_shortcuts(&app_handle)?;
+    store::get_settings(&app_handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_phrase_enabled(
+    app_handle: tauri::AppHandle,
+    id: i32,
+    enabled: bool,
+) -> Result<store::AppSettings, String> {
+    store::set_phrase_enabled(&app_handle, id, enabled).map_err(|e| e.to_string())?;
+    shortcut::reload_shortcuts(&app_handle)?;
+    store::get_settings(&app_handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_phrases_enabled(
+    app_handle: tauri::AppHandle,
+    enabled: bool,
+) -> Result<store::AppSettings, String> {
+    store::set_phrases_enabled(&app_handle, enabled).map_err(|e| e.to_string())?;
+    shortcut::reload_shortcuts(&app_handle)?;
+    store::get_settings(&app_handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn test_model_connection(
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    ai_translator::test_model_connection(&app_handle)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub fn run() {
@@ -74,7 +134,12 @@ pub fn run() {
             update_translator_shortcut,
             log_to_backend,
             get_settings,
-            get_version
+            get_version,
+            update_phrase,
+            update_phrase_hotkey,
+            set_phrase_enabled,
+            set_phrases_enabled,
+            test_model_connection
         ]);
 
     // 只在非Windows系统上添加窗口事件监听

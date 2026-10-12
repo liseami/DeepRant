@@ -1,6 +1,12 @@
-// 导入所需的 Tauri 相关模块
+/**
+ * [INPUT]: 依赖 store 的 HotkeyConfig；依赖 shell_helper 执行翻译与常用语
+ * [OUTPUT]: 提供全局快捷键注册、keys_to_hotkey 解析、reload_shortcuts
+ * [POS]: 快捷键的唯一注册点。常用语开关关闭时不注册短语键。
+ * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ */
+
 use crate::shell_helper::{send_phrase, trans_and_replace_text};
-use crate::store::{get_settings, update_settings_field, HotkeyConfig};
+use crate::store::{display_key, get_settings, update_settings_field, HotkeyConfig};
 use std::str::FromStr;
 use std::sync::Arc;
 use tauri::AppHandle;
@@ -139,8 +145,15 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
         create_trans_handler(app.clone()),
     )?;
 
+    if !settings.phrases_enabled {
+        return Ok(());
+    }
+
     // 注册常用语快捷键
     for phrase in settings.phrases {
+        if !phrase.enabled {
+            continue;
+        }
         let phrase_text = phrase.phrase.clone();
         let app_handle = app.clone();
 
@@ -249,7 +262,7 @@ pub fn update_translator_shortcut(
                 })
                 .collect::<Vec<_>>()
                 .join("+"),
-            format_key_display(&key)
+            display_key(&key)
         );
 
         let new_hotkey = HotkeyConfig {
@@ -293,30 +306,65 @@ fn create_trans_handler(
     }
 }
 
-/// 格式化键盘代码为用户友好的显示文本
-fn format_key_display(key: &str) -> String {
-    if key.starts_with("Key") {
-        key[3..].to_string()
-    } else if key.starts_with("Digit") {
-        key[5..].to_string()
-    } else if key.starts_with("Arrow") {
-        match key {
-            "ArrowUp" => "↑".to_string(),
-            "ArrowDown" => "↓".to_string(),
-            "ArrowLeft" => "←".to_string(),
-            "ArrowRight" => "→".to_string(),
-            _ => key.to_string(),
-        }
-    } else {
-        match key {
-            "Space" => "空格".to_string(),
-            "Tab" => "Tab".to_string(),
-            "Enter" => "↵".to_string(),
-            "Backspace" => "⌫".to_string(),
-            "Delete" => "Del".to_string(),
-            "Escape" => "Esc".to_string(),
-            "CapsLock" => "⇪".to_string(),
-            _ => key.to_string(),
-        }
+pub fn keys_to_hotkey(keys: Vec<String>) -> Result<HotkeyConfig, String> {
+    let has_modifier = keys.iter().any(|k| {
+        k.contains("Control") || k.contains("Alt") || k.contains("Shift") || k.contains("Meta")
+    });
+    let has_non_modifier = keys.iter().any(|k| {
+        !k.contains("Control") && !k.contains("Alt") && !k.contains("Shift") && !k.contains("Meta")
+    });
+    if !has_modifier || !has_non_modifier || keys.len() < 2 {
+        return Err(
+            "快捷键必须包含至少一个修饰键(Control/Alt/Shift/Command)和一个其他按键".to_string(),
+        );
     }
+
+    let modifiers: Vec<String> = keys[..keys.len() - 1]
+        .iter()
+        .map(|k| k.replace("Left", "").replace("Right", ""))
+        .collect();
+    let key = keys.last().cloned().unwrap_or_default();
+    let shortcut = format!(
+        "{}+{}",
+        modifiers
+            .iter()
+            .map(|m| match m.as_str() {
+                "Control" => {
+                    if cfg!(target_os = "macos") {
+                        "⌃"
+                    } else {
+                        "Ctrl"
+                    }
+                }
+                "Alt" => {
+                    if cfg!(target_os = "macos") {
+                        "⌥"
+                    } else {
+                        "Alt"
+                    }
+                }
+                "Shift" => "⇧",
+                "Meta" => {
+                    if cfg!(target_os = "macos") {
+                        "⌘"
+                    } else {
+                        "Win"
+                    }
+                }
+                _ => m,
+            })
+            .collect::<Vec<_>>()
+            .join("+"),
+        display_key(&key)
+    );
+    Ok(HotkeyConfig {
+        modifiers,
+        key,
+        shortcut,
+    })
+}
+
+pub fn reload_shortcuts(app: &AppHandle) -> Result<(), String> {
+    let _ = app.global_shortcut().unregister_all();
+    init_shortcuts(app)
 }

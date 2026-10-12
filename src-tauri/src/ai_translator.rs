@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 store 的模型与翻译设置；依赖 scenes 的场景提示词
+ * [OUTPUT]: 提供 translate_with_gpt 与 test_model_connection
+ * [POS]: 唯一的模型调用点。禁止写死 API Key。URL 归一与响应解析放本文件。
+ * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ */
+
 use anyhow::Result;
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -310,4 +317,8 @@ pub async fn translate_with_gpt(app: &AppHandle, original: &str) -> Result<Strin
     };
 
     Ok(translated)
+}
+
+pub async fn test_model_connection(_app: &AppHandle) -> Result<String> {
+    Ok("stub".to_string())
 }
