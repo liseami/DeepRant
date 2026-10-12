@@ -1,119 +1,177 @@
-name: 'Release'
-
+# [INPUT]: release 分支 commit、锁定依赖与仓库签名凭据。
+# [OUTPUT]: 双架构公证 DMG、Windows 安装器、签名更新与固定 commit 的 Release。
+# [POS]: CCBaga 式构建/发布权限分离，全部平台和安装验证通过后才公开。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+name: Release
 on:
   push:
-    branches:
-      - release
-
+    branches: [release]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deeprant-release
+  cancel-in-progress: false
 jobs:
-  publish-tauri:
-    permissions:
-      contents: write
+  build:
+    if: github.repository == 'liseami/DeepRant' && github.ref == 'refs/heads/release' && github.actor == 'liseami' && github.triggering_actor == 'liseami'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            name: 'macOS ARM64'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            name: 'macOS Intel'
-          - platform: 'windows-latest'
-            args: ''
-            name: 'Windows'
-
-    runs-on: ${{ matrix.platform }}
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15
+            target: x86_64-apple-darwin
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Import Apple Developer Certificate
-        if: matrix.platform == 'macos-latest'
+          node-version: '22.23.2'
+          package-manager-cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.13'
+      - name: Prepare locked dependencies
+        shell: bash
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component clippy --component rustfmt
+          rustup default 1.98.1
+          rustup target add --toolchain 1.98.1 ${{ matrix.target }}
+          npm ci
+      - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c
+        with:
+          workspaces: src-tauri -> target
+          shared-key: ${{ matrix.target }}
+      - name: Verify before signing
+        shell: bash
+        run: |
+          npm run check
+          python scripts/test-release.py
+          rustup run 1.98.1 cargo fmt --manifest-path src-tauri/Cargo.toml --check
+          rustup run 1.98.1 cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
+          rustup run 1.98.1 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features custom-protocol -- -D warnings
+      - name: Import Apple signing credentials
+        if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY || secrets.APPLE_API_KEY_CONTENT }}
+        shell: bash
         run: |
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
-      - name: Verify Certificate
-        if: matrix.platform == 'macos-latest'
-        run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
-
-      - name: Build and Release
-        uses: tauri-apps/tauri-action@v0
+          set -euo pipefail
+          umask 077
+          for variable in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_PRIVATE_KEY; do
+            test -n "${!variable}" || { echo "Missing GitHub Secret: $variable" >&2; exit 1; }
+          done
+          certificate="$RUNNER_TEMP/deeprant-signing.p12"
+          keychain="$RUNNER_TEMP/deeprant-signing.keychain-db"
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate"
+          python3 - <<'PY'
+          import os, base64
+          from pathlib import Path
+          value = os.environ['APPLE_API_PRIVATE_KEY']
+          if '-----BEGIN' not in value:
+              value = base64.b64decode(value).decode()
+          Path(os.environ['RUNNER_TEMP'], 'deeprant-notary.p8').write_text(value)
+          PY
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -t cert -f pkcs12 -k "$keychain" >/dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+      - name: Build, notarize, staple, then sign final bytes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CC_SIGN_IDENTITY: 'Developer ID Application: Shanghai Diyu Network Technology Co., Ltd (6UB6WM6VQR)'
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/deeprant-notary.p8
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+        run: python scripts/release.py ${{ matrix.target }}
+      - name: Verify Windows installation and startup
+        if: runner.os == 'Windows'
+        run: ./scripts/verify-windows.ps1
+      - name: Remove Apple credentials
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/deeprant-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/deeprant-signing.p12" "$RUNNER_TEMP/deeprant-notary.p8"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          tagName: v__VERSION__
-          releaseName: 'DeepRant v__VERSION__'
-          releaseBody: |
-            请查看附件下载对应系统的安装包：
-            - Windows: .msi 安装包
-            - macOS Intel: .dmg (x64) 安装包
-            - macOS Apple Silicon: .dmg (arm64) 安装包
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-
-      - name: Notarize DMG (macOS)
-        if: matrix.platform == 'macos-latest'
+          name: release-${{ matrix.target }}
+          path: releases/
+          if-no-files-found: error
+          retention-days: 7
+  windows_compat:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-x86_64-pc-windows-msvc
+          path: releases
+      - run: ./scripts/verify-windows.ps1
+  publish:
+    needs: [build, windows_compat]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: releases
+      - name: Assemble verified public assets
+        run: python3 scripts/assemble-release.py
+      - uses: actions/attest-build-provenance@8beda2b7ed98355c0e97c0a63bec38ae472e66c4
+        if: github.event.repository.private == false
+        with:
+          subject-path: |
+            releases/*.dmg
+            releases/*.app.tar.gz
+            releases/*-setup.exe
+      - name: Pin tested commit and publish
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
         run: |
-          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            xcrun notarytool submit "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_"*"_aarch64.dmg" \
-              --apple-id "$APPLE_ID" \
-              --password "$APPLE_ID_PASSWORD" \
-              --team-id "$APPLE_TEAM_ID" \
-              --wait
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          tag="v$version"
+          if existing_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null)"; then
+            test "$existing_sha" = "$RELEASE_COMMIT" || { echo 'Tag belongs to another commit' >&2; exit 1; }
           else
-            xcrun notarytool submit "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_"*"_x64.dmg" \
-              --apple-id "$APPLE_ID" \
-              --password "$APPLE_ID_PASSWORD" \
-              --team-id "$APPLE_TEAM_ID" \
-              --wait
+            gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$RELEASE_COMMIT" >/dev/null
           fi
-
-      - name: Staple DMG (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
-            xcrun stapler staple "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/DeepRant_"*"_aarch64.dmg"
+          mapfile -t assets < release-files.txt
+          if gh release view "$tag" >/dev/null 2>&1; then
+            test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = true || { echo 'Published release is immutable' >&2; exit 1; }
+            gh release upload "$tag" "${assets[@]}" --clobber
           else
-            xcrun stapler staple "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/DeepRant_"*"_x64.dmg"
+            gh release create "$tag" "${assets[@]}" --verify-tag --title "DeepRant $version" --notes-file RELEASE_NOTES.md --draft
           fi
+          gh release edit "$tag" --draft=false --latest

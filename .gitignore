@@ -29,3 +29,7 @@ dist-ssr
 
 # supabase
 supabase
+# 发布和检查临时产物
+releases/
+release-files.txt
+__pycache__/

@@ -1,0 +1,44 @@
+# [INPUT]: 普通分支或 PR 的锁定源码，不接触签名凭据。
+# [OUTPUT]: macOS / Windows 前端、原生测试、格式与静态检查。
+# [POS]: 整合门禁；release 独立重跑同一组验证。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+name: Checks
+on:
+  pull_request:
+  push:
+    branches-ignore: [release]
+permissions:
+  contents: read
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22.23.2'
+          package-manager-cache: false
+      - name: Prepare dependencies
+        shell: bash
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component clippy --component rustfmt
+          rustup default 1.98.1
+          npm ci
+      - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c
+        with:
+          workspaces: src-tauri -> target
+      - name: Run checks
+        shell: bash
+        run: |
+          npm run check
+          python scripts/test-release.py
+          rustup run 1.98.1 cargo fmt --manifest-path src-tauri/Cargo.toml --check
+          rustup run 1.98.1 cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
+          rustup run 1.98.1 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features custom-protocol -- -D warnings
