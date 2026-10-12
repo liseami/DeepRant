@@ -141,7 +141,7 @@ pub async fn trans_and_replace_text(app: &AppHandle) -> Result<()> {
             bail!("翻译期间输入内容或选区发生变化，已取消自动粘贴。请在手动翻译页继续。");
         }
         transaction.paste(&translated)?;
-        report_status(&transaction.app, "done", "译文已粘贴");
+        report_status(&transaction.app, "done", "粘贴操作已发送，请确认目标输入框");
         Ok(())
     })
     .await
@@ -158,7 +158,11 @@ pub async fn send_phrase(app: &AppHandle, phrase: &str) -> Result<()> {
     tauri::async_runtime::spawn_blocking(move || {
         let transaction = InputTransaction::new(app, busy)?;
         transaction.paste(&phrase)?;
-        report_status(&transaction.app, "done", "常用语已粘贴");
+        report_status(
+            &transaction.app,
+            "done",
+            "常用语粘贴操作已发送，请确认目标输入框",
+        );
         Ok(())
     })
     .await
