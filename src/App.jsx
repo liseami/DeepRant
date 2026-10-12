@@ -21,5 +21,5 @@ const pages = { mana: Mana, user: User, home: Home, translate: Translate, settin
 export default function App() {
   const [activeItem, setActiveItem] = useState('home');
   const CurrentPage = pages[activeItem];
-  return <StoreProvider><div className="min-h-screen bg-white text-zinc-900"><Layout activeItem={activeItem} setActiveItem={setActiveItem}><CurrentPage /></Layout></div></StoreProvider>;
+  return <StoreProvider><div className="min-h-screen bg-background text-foreground"><Layout activeItem={activeItem} setActiveItem={setActiveItem}><CurrentPage /></Layout></div></StoreProvider>;
 }

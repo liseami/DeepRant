@@ -1,79 +1,55 @@
 /**
- * [INPUT]: 依赖原版游戏演示视频与语言、游戏场景、快捷键三张卡片
- * [OUTPUT]: 提供原版横排三卡的游戏内翻译准备界面
- * [POS]: 主页专注游戏翻译配置；表达模式交给模式页，演示离屏时暂停
+ * [INPUT]: 依赖原游戏演示视频、Cromma UI Panel/动效和三个核心设置卡片
+ * [OUTPUT]: 提供游戏内翻译主页，保留视频横幅和横排语言/游戏/快捷键配置
+ * [POS]: CCBaga 同款视觉包裹 DeepRant 原操作骨架，表达模式仍在独立模式页
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { Panel, motion, MOTION } from 'cromma-ui';
 import TranslationDirectionCard from './components/TranslationDirectionCard';
 import GameSceneCard from './components/GameSceneCard';
 import HotkeyCard from './components/HotkeyCard';
-// 导入视频文件
+import { useStore } from '../../components/StoreProvider';
 import demoVideo from '../../assets/demovideo.mp4';
 
 export default function Home() {
-    const videoRef = useRef(null);
+  const videoRef = useRef(null);
+  const { locale } = useStore();
 
-    useEffect(() => {
-        // -------- 演示在可见时播放，离屏暂停以保留游戏资源 --------
-        const video = videoRef.current;
-        if (video) {
-            video.playbackRate = 1.0;
-            video.defaultPlaybackRate = 1.0;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) video.play().catch(() => {});
+        else video.pause();
+      });
+    }, { threshold: 0.5 });
+    observer.observe(video);
+    return () => { observer.disconnect(); video.pause(); };
+  }, []);
 
-            const observer = new IntersectionObserver(
-                (entries) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting) {
-                            video.play().catch(() => {});
-                        } else {
-                            video.pause();
-                        }
-                    });
-                },
-                { threshold: 0.5 }
-            );
-
-            observer.observe(video);
-
-            return () => {
-                observer.disconnect();
-                video.pause();
-            };
-        }
-    }, []);
-
-    return (
-        <div className="h-full flex flex-col gap-6">
-            {/* 演示视频区域 */}
-            <motion.div
-                className="w-full bg-white rounded-2xl overflow-hidden border border-zinc-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-sm"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-            >
-                <div className="relative w-full" style={{ paddingTop: 'calc(100% / 5.5)' }}>
-                    <video
-                        ref={videoRef}
-                        className="absolute top-0 left-0 w-full h-full object-cover"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="none"
-                    >
-                        <source src={demoVideo} type="video/mp4" />
-                    </video>
-                </div>
-            </motion.div>
-
-            {/* 卡片网格 */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <TranslationDirectionCard />
-                <GameSceneCard />
-                <HotkeyCard />
-            </div>
-        </div>
-    );
-} 
+  return (
+    <div className="h-full min-h-0 flex flex-col gap-5">
+      <header className="workspace-title shrink-0">
+        <h1 className="text-2xl font-semibold tracking-tight">{locale === 'en' ? 'In-game translation' : '游戏内翻译'}</h1>
+        <p className="text-sm text-muted-foreground">{locale === 'en' ? 'Open chat, type your message, and press your translation shortcut.' : '打开聊天框，输入内容，按下翻译快捷键。'}</p>
+      </header>
+      <motion.div className="shrink-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={MOTION.base}>
+        <Panel aria-label={locale === 'en' ? 'In-game translation demo' : '游戏内翻译演示'}>
+          <div className="relative w-full" style={{ paddingTop: 'calc(100% / 5.5)' }}>
+            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay loop muted playsInline preload="none">
+              <source src={demoVideo} type="video/mp4" />
+            </video>
+          </div>
+        </Panel>
+      </motion.div>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 pb-1">
+        <TranslationDirectionCard />
+        <GameSceneCard />
+        <HotkeyCard />
+      </div>
+    </div>
+  );
+}
