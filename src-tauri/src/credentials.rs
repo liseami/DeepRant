@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 keyring 的平台原生凭据库；账户由已归一的模型端点与协议确定
  * [OUTPUT]: 提供 API Key 的读取、写入与明确删除；缺失凭据返回 None
- * [POS]: 唯一接触明文凭据的持久化边界；store 负责迁移，模型管道按端点读取
+ * [POS]: 明文凭据的唯一持久化边界；store 负责迁移，模型管道和主窗口 Key 编辑控件按端点读取，不进入公开设置
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, Result};

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、模型与游戏输入管道、input_diagnostics 的权限和阶段快照。
- * [OUTPUT]: 设置/翻译/输入诊断 IPC；Ready 先激活主窗口，再在阻塞线程初始化凭据与快捷键。
+ * [OUTPUT]: 设置/翻译/输入诊断 IPC 与仅主窗口的 Key 查看；Ready 先激活主窗口，再异步初始化凭据与快捷键。
  * [POS]: 仅编排边界模块；主线程不等待 Keychain，输入失败显示主窗口，浮窗关闭取消；警告日志不记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -53,6 +53,24 @@ async fn clear_api_key(app_handle: tauri::AppHandle) -> Result<store::AppSetting
     })
     .await
     .map_err(|_| "凭据任务被中断".to_string())?
+}
+
+// -------- Key 只回到模型编辑控件，不进入公开设置或诊断 --------
+#[tauri::command]
+async fn read_api_key(
+    window: tauri::WebviewWindow,
+    api_url: String,
+    protocol: String,
+) -> Result<Option<String>, String> {
+    if window.label() != "main" {
+        return Err("只有主窗口的模型设置可以查看 API Key".into());
+    }
+    let endpoint = store::normalize_api_url(&api_url, &protocol).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        credentials::read(&endpoint, &protocol).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|_| "凭据读取任务被中断".to_string())?
 }
 
 #[tauri::command]
@@ -261,6 +279,7 @@ pub fn run() {
             get_settings,
             update_settings,
             clear_api_key,
+            read_api_key,
             test_model_connection,
             translate_text,
             get_shortcut_status,
