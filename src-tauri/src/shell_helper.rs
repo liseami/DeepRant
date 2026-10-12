@@ -31,7 +31,8 @@ pub fn report_status(app: &AppHandle, state: &str, message: &str) {
     crate::input_diagnostics::record(state, message);
     let _ = app.emit(
         "deeprant://input-status",
-        serde_json::json!({"state": state, "message": message}),
+        serde_json::json!({"state": state, "message": message,
+            "accessibility_required": state == "error" && accessibility_granted() == Some(false)}),
     );
     // 正在进行的事务被重复热键拒绝时，保留诊断但不抢焦点、不打断原事务。
     if state == "error" && !INPUT_BUSY.load(Ordering::Acquire) {

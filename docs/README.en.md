@@ -76,7 +76,7 @@ These desktop platforms are the release targets. This version has no mobile clie
 2. Open DeepRant and allow it in **System Settings → Privacy & Security → Accessibility**.
 3. Configure a service in **AI models**, then choose languages and a shortcut on Home.
 
-The official delivery process uses the same Developer ID team as CCBaga and performs signing, notarization and ticket stapling. Local development packages use ad-hoc signatures and are distinct from official downloads.
+Official delivery uses the same Developer ID team as CCBaga, signing, notarization and stapled tickets. Local builds prefer that team's stable signature to preserve their input-permission identity; public downloads also undergo full notarization checks.
 
 ### Windows
 
@@ -211,7 +211,7 @@ npm run tauri dev
 npm run dev:install
 ```
 
-Following CCBaga's local delivery workflow, this rebuilds a debug application with its UI embedded, applies ad-hoc signatures, transactionally replaces `/Applications/DeepRant.app` and starts it. User settings are preserved. It uses no Apple release credentials and publishes nothing to GitHub.
+Run local delivery from the `release` branch. It rebuilds a debug application with its UI embedded, prefers the same team's Developer ID in the system Keychain, transactionally replaces `/Applications/DeepRant.app` and starts it. Without a certificate it falls back to ad-hoc signing. Settings are preserved; notarization and updater secrets are not exported, and the command publishes nothing. A stable signature prevents each rebuild from changing the application's Accessibility identity.
 
 Each invocation creates `releases/DeepRant-<version>-local-arm64-<commit>.app.zip` and `releases/local-build.json`, recording the source commit, time and SHA-256. The integrator performs technical checks; interface and actual game behavior require acceptance in the target environment. Development packages are distinct from official releases.
 
