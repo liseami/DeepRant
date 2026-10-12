@@ -1,28 +1,36 @@
-import { useState } from 'react';
+/**
+ * [INPUT]: 依赖 useStore 的 settings.ui_language 与 I18N 词典
+ * [OUTPUT]: 提供侧栏导航与 zh|en 切换。写入 ui_language。
+ * [POS]: Layout 的左侧导航。不负责页面内容。
+ * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ */
+
 import { motion } from 'framer-motion';
 import { twMerge } from 'tailwind-merge';
 import {
   HomeHLine,
   Settings02,
   Translate,
-  UserUser01,
   InfoCircle,
   GodlyWebsite,
 } from '../icons';
 import appIcon from '../assets/app-icon.png';
-// import LoginModal from './LoginModal';
+import { useStore } from './StoreProvider';
+import { I18N, uiLocale } from '../data/i18n.js';
 
 const sidebarItems = [
-  { name: '主页', icon: HomeHLine, id: 'home' },
-  { name: '模式', icon: Translate, id: 'translate' },
-  { name: '常用语', icon: InfoCircle, id: 'phrases' },
-  { name: '能量', icon: GodlyWebsite, id: 'mana' },
-  { name: 'AI模型', icon: Settings02, id: 'settings' },
-  { name: '关于', icon: InfoCircle, id: 'about' },
+  { icon: HomeHLine, id: 'home' },
+  { icon: Translate, id: 'translate' },
+  { icon: InfoCircle, id: 'phrases' },
+  { icon: GodlyWebsite, id: 'mana' },
+  { icon: Settings02, id: 'settings' },
+  { icon: InfoCircle, id: 'about' },
 ];
 
 export default function Sidebar({ activeItem, setActiveItem }) {
-  // const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { settings, updateSettings } = useStore();
+  const locale = uiLocale(settings?.ui_language);
+  const labels = I18N[locale].sidebar;
 
   return (
     <div className='h-full flex flex-col bg-[#F9F9F9]'>
@@ -77,27 +85,35 @@ export default function Sidebar({ activeItem, setActiveItem }) {
                     isActive ? 'stroke-[#1a1a1a]' : 'stroke-[#666666]'
                   )}
                 />
-                {item.name}
+                {labels[item.id]}
               </div>
             </div>
           );
         })}
       </nav>
 
-      {/* 用户信息 */}
-      {/* <div className='px-2 pb-3'>
-        <div
-          className='flex items-center px-3.5 py-2.5 cursor-pointer text-[#666666] hover:text-[#1a1a1a]'
-          onClick={() => setIsLoginModalOpen(true)}>
-          <UserUser01 className='w-[18px] h-[18px] mr-3 stroke-[#666666]' />
-          <span className='text-[14px] font-medium'>未登录</span>
-        </div>
-      </div> */}
-
-      {/* <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      /> */}
+      {/* -------- 界面语言 -------- */}
+      <div className='px-5 pb-4 flex items-center gap-2 text-[12px] text-[#666666]'>
+        <button
+          type='button'
+          onClick={() => updateSettings({ ui_language: 'zh' })}
+          className={twMerge(
+            'hover:text-[#1a1a1a]',
+            locale === 'zh' && 'font-semibold text-[#1a1a1a]'
+          )}>
+          zh
+        </button>
+        <span>|</span>
+        <button
+          type='button'
+          onClick={() => updateSettings({ ui_language: 'en' })}
+          className={twMerge(
+            'hover:text-[#1a1a1a]',
+            locale === 'en' && 'font-semibold text-[#1a1a1a]'
+          )}>
+          en
+        </button>
+      </div>
     </div>
   );
 }
