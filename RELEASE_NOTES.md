@@ -1,13 +1,14 @@
 # DeepRant 2.0.0
 
 - 升级至 Tauri 2.12.3 / CLI 2.12.2，Vite 8.3.4 和 Tailwind CSS 4.3.3；移除脚本注入与失实共享额度。原游戏界面骨架、开发者页和录屏保留，视觉使用 CCBaga 同源 Laper App 组件 / Pika 系统。
-- DeepSeek Flash (`deepseek-flash`) / Pro (`deepseek-v4-pro`)、OpenAI 兼容 API、Anthropic Messages 与本地 Ollama 共用原生请求管道。支持 Base URL 自动归一，超时与 HTTP/空响应/解析失败诊断，仅输出最终文本。
+- DeepSeek Flash / Pro、腾讯 TokenHub 广州 / 新加坡、硅基流动、302.AI、OpenAI、Anthropic 和 Ollama 共用原生请求。支持 Base URL 归一与安全诊断复制；R1 兼容使用单 user 回合与独立推理预算，仅输出最终文本。
 - 自用 Key 存入系统凭据库，前端不读回密钥。旧配置安全迁移；不再提供内置共享 Key。
-- 原生输入等待修饰键释放，检测复制成功、焦点和原文变化，拒绝并发触发；翻译失败保留原文，状态不污染聊天。部分游戏阻止复制或模拟输入时，请使用新增手动翻译页。
+- 原位输入等待修饰键释放，核验复制、焦点与原文变化；状态不污染聊天。LoL 默认游戏输入浮窗：先开空聊天框，快捷键写消息、翻译预览、确认后 Unicode 回填；无需复制游戏文字，不自动回车。其他游戏也可选浮窗。
 - 常用语可编辑、增删、改键、逐条开关及整体关闭。默认关闭，避免占用游戏键位。支持 F 键与小键盘数字，Windows 拒绝不能独立区分的小键盘 Enter / Equal。
-- 新增各 issue 请求的游戏语境、自定义提示词与术语对照表，支持英式英语、中文直出和完整中英文主要界面。
+- 新增请求的游戏语境（含坦克世界）、场景提示词、术语表和全局表达偏好；游戏 / 日常共用表达风格，支持英式英语、中文直出和双语界面。
+- 移除能量 / 登录入口；图标内嵌透明圆角，原游戏录屏按本地资源 Range 读取，首页播放器切页保留、离页暂停。
 - 沿用 CCBaga 发布验收链：macOS 双架构签名、公证及装订，Windows 当前用户安装、启动与卸载验证；最终更新包绑定版本签名，全部平台验收后发布。
 
 升级提示：常用语需主动启用；API 服务费用由供应商收取。历史泄露共享 Key 应在供应商后台撤销。Windows 安装器的 updater 签名不等同于 Authenticode；本工具不保证绕过游戏输入限制，也不应关闭安全软件或改变 PowerShell 执行策略。
 
-English: This release modernizes the desktop runtime, moves credentials to the OS vault, unifies model requests, and rebuilds safe input transactions. It adds editable phrase shortcuts, manual translation, custom game contexts and bilingual UI. Games that prohibit copying require manual translation. Phrase shortcuts start disabled. macOS packages are notarized; updates verify signatures bound to their announced version.
+英文产品说明见 [English README](docs/README.en.md)。当前版本仍为本机开发交付；公开产物须全部平台验证后发布。

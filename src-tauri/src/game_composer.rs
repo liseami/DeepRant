@@ -49,6 +49,9 @@ fn current_id() -> Result<u64> {
 }
 
 fn show(app: &AppHandle, id: u64) -> Result<()> {
+    if current_id()? != id {
+        bail!("输入会话已结束，不重新打开旧浮窗");
+    }
     let window = app
         .get_webview_window(WINDOW)
         .ok_or_else(|| anyhow!("游戏输入浮窗不可用"))?;

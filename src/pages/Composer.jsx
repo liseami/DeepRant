@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cromma UI、公开设置和原生 composer 会话；翻译仍走统一 Rust 请求。
+ * [INPUT]: 依赖 Cromma UI、公开设置、ComposerSession 编号守卫和原生会话；翻译仍走统一 Rust 请求。
  * [OUTPUT]: 提供热键唤起的游戏输入浮窗，编辑原文、预览译文并确认回填原聊天窗口。
  * [POS]: 禁用复制的游戏使用独立输入工作面；目标窗口和会话归 Rust 所有，前端不自行切换焦点或模拟按键。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -13,6 +13,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { StoreProvider, useStore } from '../components/StoreProvider';
 import { languageName } from '../data/languages';
+import { ComposerSession } from '../utils/composer-session';
 
 function ComposerContent() {
   const { settings, loading, error: settingsError, refresh, locale } = useStore();
@@ -22,7 +23,7 @@ function ComposerContent() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const currentSession = useRef(null);
+  const sessions = useRef(new ComposerSession());
   const sourceRef = useRef(null);
   const english = locale === 'en';
 
@@ -31,9 +32,8 @@ function ComposerContent() {
     let unlisten;
     const reset = (next) => {
       if (disposed) return;
-      // -------- 同一会话重显（例如回填失败）必须保留消息与译文草稿 --------
-      if (currentSession.current === next.id) return;
-      currentSession.current = next.id;
+      // -------- 同会话重显保留草稿，旧事件与已结束会话不能覆盖新编号 --------
+      if (!sessions.current.accept(next.id)) return;
       setSession(next.id);
       setSource(''); setResult(''); setError(''); setBusy(''); setCopied(false);
       refresh();
@@ -46,7 +46,7 @@ function ComposerContent() {
       try { reset(await invoke('get_composer_session')); }
       catch (failure) { if (!disposed) setError(String(failure)); }
     }).catch(failure => { if (!disposed) setError(String(failure)); });
-    return () => { disposed = true; currentSession.current = null; unlisten?.(); };
+    return () => { disposed = true; sessions.current.current = null; unlisten?.(); };
   }, [refresh]);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ function ComposerContent() {
   }, [loading, session]);
 
   const showFailure = (failure, id) => {
-    if (currentSession.current === id) setError(String(failure));
+    if (sessions.current.owns(id)) setError(String(failure));
   };
 
   async function translate(event) {
@@ -64,25 +64,39 @@ function ComposerContent() {
     setBusy('translate'); setError(''); setResult(''); setCopied(false);
     try {
       const translated = await invoke('translate_text', { text: source });
-      if (currentSession.current === id) setResult(translated.replace(/\s*[\r\n]+\s*/g, ' ').trim());
+      if (sessions.current.owns(id)) setResult(translated.replace(/\s*[\r\n]+\s*/g, ' ').trim());
     } catch (failure) { showFailure(failure, id); }
-    finally { if (currentSession.current === id) setBusy(''); }
+    finally { if (sessions.current.owns(id)) setBusy(''); }
   }
 
   async function commit() {
     if (busy || session === null || !result.trim()) return;
     const id = session;
     setBusy('commit'); setError('');
-    try { await invoke('commit_composer', { sessionId: id, text: result.trim() }); }
+    try {
+      await invoke('commit_composer', { sessionId: id, text: result.trim() });
+      const current = sessions.current.owns(id);
+      sessions.current.finish(id);
+      if (current) { setSession(null); setBusy(''); }
+    }
     catch (failure) { showFailure(failure, id); }
-    finally { if (currentSession.current === id) setBusy(''); }
+    finally { if (sessions.current.owns(id)) setBusy(''); }
   }
 
   async function cancel() {
-    if (session === null || busy === 'commit') return;
+    if (session === null || busy === 'commit' || busy === 'cancel') return;
     const id = session;
-    try { await invoke('cancel_composer', { sessionId: id }); currentSession.current = null; setSession(null); }
-    catch (failure) { showFailure(failure, id); }
+    sessions.current.beginCancel(id);
+    setBusy('cancel');
+    try {
+      await invoke('cancel_composer', { sessionId: id });
+      sessions.current.finish(id);
+      if (sessions.current.current === null) { setSession(null); setBusy(''); }
+    } catch (failure) {
+      sessions.current.cancelFailed(id);
+      showFailure(failure, id);
+      if (sessions.current.owns(id)) setBusy('');
+    }
   }
 
   async function copy() {
@@ -91,7 +105,7 @@ function ComposerContent() {
   }
 
   function keyboard(event) {
-    if (event.isComposing || event.nativeEvent.isComposing) return;
+    if (event.repeat || event.isComposing || event.nativeEvent.isComposing) return;
     if (event.key === 'Escape') { event.preventDefault(); cancel(); }
     else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
@@ -127,7 +141,7 @@ function ComposerContent() {
             <Button variant="ink" size="small" leftIcon={<SendPlaneHorizontal size={14} aria-hidden="true" />} loading={busy === 'commit'}
               disabled={Boolean(busy) || session === null || !result.trim()} onClick={commit}>{english ? 'Insert into game' : '回填聊天框'}</Button>
             <Button variant="secondary" size="small" leftIcon={<CopyDefault size={14} aria-hidden="true" />} disabled={!result || Boolean(busy)} onClick={copy}>{copied ? (english ? 'Copied' : '已复制') : (english ? 'Copy' : '复制')}</Button>
-            <Button variant="ghost" size="small" disabled={busy === 'commit'} onClick={cancel}>{english ? 'Cancel' : '取消'}</Button>
+            <Button variant="ghost" size="small" disabled={busy === 'commit' || busy === 'cancel'} onClick={cancel}>{english ? 'Cancel' : '取消'}</Button>
           </div>
           <p className="text-xs text-muted-foreground">{english ? 'Ctrl / ⌘ + Enter: translate or insert · Esc: cancel' : 'Ctrl / ⌘ + Enter 翻译或回填 · Esc 取消'}</p>
         </>}

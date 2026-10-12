@@ -243,7 +243,9 @@ fn unicode_chunks(text: &str) -> impl Iterator<Item = &str> {
         let (start, first) = chars.next()?;
         let mut units = first.len_utf16();
         while let Some((_, next)) = chars.peek() {
-            if units + next.len_utf16() > 16 { break; }
+            if units + next.len_utf16() > 16 {
+                break;
+            }
             units += next.len_utf16();
             chars.next();
         }
@@ -608,7 +610,9 @@ mod tests {
         let text = "🙂😀😅😉😊😂😍😎🤓🥳你好 team — go mid";
         let chunks: Vec<_> = unicode_chunks(text).collect();
         assert_eq!(chunks.concat(), text);
-        assert!(chunks.iter().all(|chunk| chunk.encode_utf16().count() <= 16));
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.encode_utf16().count() <= 16));
         assert!(unicode_chunks("").next().is_none());
     }
     #[test]

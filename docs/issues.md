@@ -1,64 +1,68 @@
-# DeepRant 2.0 问题覆盖记录
+# DeepRant 2.0 需求与验收记录
 
-调查截点：2026-10-12。开放 issue 39 个，PR 2 个。关闭表示此轮实现、替代流程或明确产品边界已有落点；不等同于逐款游戏、杀毒产品或第三方模型均做过现场验证。
+调查日期：2026-10-12。39 个开放 issue、2 个开放 PR，正文和评论已逐条阅读。需求由本项目独立实现，没有合并外部 PR。这里记录代码与验证证据；GitHub 尚未关闭问题，2.0 尚未公开发布。
 
-## 根因与架构
+## 架构落点
 
-设置只有 Rust 一个写入口，凭据与普通配置分离；模型协议集中在请求边界，语境集中在数据目录；快捷键注册和持久化一起提交；输入事务先取证再改写。移除默认共享 Key、平台脚本和虚构额度；保留原页面入口、原游戏演示与三卡操作骨架，以 CCBaga 同源 Laper App / Pika 体系提升视觉。发布采用 CCBaga 的最终字节签名和统一验收。
+Rust 统一持有设置、系统凭据和模型请求。普通输入框使用原位事务，先确认复制成功，翻译后再次核对原文与焦点。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
 
-## 完整覆盖
+所有输入方式共用语言、表达风格、通用提示词和术语表。API 连接测试与翻译共用原生请求，凭据存入系统凭据库；诊断只含服务名、协议、模型、耗时与脱敏错误。普通模型预算 2048 token / 60 秒，R1 兼容预算 16384 token / 120 秒，仅解析最终文本。
 
-| Issue | 分类 | 处理落点 |
+## 逐条覆盖
+
+| Issue | 独立实现与产品取舍 | 验收边界 |
 | --- | --- | --- |
-| [#5](https://github.com/liseami/DeepRant/issues/5) 为什么我按快捷键没反应啊 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#10](https://github.com/liseami/DeepRant/issues/10) GUI是否可以加入英文支持，歪果朋友也想用！ | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#17](https://github.com/liseami/DeepRant/issues/17) 请求支持游戏：彩虹六号：围攻和全境封锁2 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#20](https://github.com/liseami/DeepRant/issues/20) 请求支持游戏：漫威争锋 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#21](https://github.com/liseami/DeepRant/issues/21) windos环境用不了 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#24](https://github.com/liseami/DeepRant/issues/24) 请求支持游戏永劫无间 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#26](https://github.com/liseami/DeepRant/issues/26) 请求增加新游戏环境：战舰世界 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#28](https://github.com/liseami/DeepRant/issues/28) 骂人语言有点匮乏了 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#29](https://github.com/liseami/DeepRant/issues/29) 能否支持手机端游戏 | 产品边界 | 自定义兼容端点满足 API 接入；不接受商务合作、不发布手机客户端。王者荣耀桌面语境已加入。 |
-| [#32](https://github.com/liseami/DeepRant/issues/32) 只会喷美国人不会喷英国人 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#33](https://github.com/liseami/DeepRant/issues/33) 能不能开一个网络嘴替功能，针对dy，xhs等活跃网民聚集地 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#34](https://github.com/liseami/DeepRant/issues/34) 硅基流动的 API Key 泄露了 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#35](https://github.com/liseami/DeepRant/issues/35) windows下英雄联盟理论上用不成 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#36](https://github.com/liseami/DeepRant/issues/36) 不知是我的电脑的问题还是1.1.9有问题，win下载后显示有病毒 | 交付与社区反馈 | 重建用户流程和安装发布；源码固定、哈希和签名更新。安全软件误报仍由供应商判定，不承诺零误报。 |
-| [#37](https://github.com/liseami/DeepRant/issues/37) 请求支持游戏燕云十六声 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#39](https://github.com/liseami/DeepRant/issues/39) windows环境下需修复和建议 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#40](https://github.com/liseami/DeepRant/issues/40) API以及windows问题 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#41](https://github.com/liseami/DeepRant/issues/41) 可以支持下腾讯云的 DeepSeekr1 吗 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#42](https://github.com/liseami/DeepRant/issues/42) 请求添加游戏漫威争锋 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#43](https://github.com/liseami/DeepRant/issues/43) 请求支持游戏：梦三国 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#44](https://github.com/liseami/DeepRant/issues/44) windows下英雄联盟游戏不生效 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#45](https://github.com/liseami/DeepRant/issues/45) 我自己的硅基流动api可以怎么用不了啊 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#46](https://github.com/liseami/DeepRant/issues/46) 一直提示 [错误] 服务器返回的数据格式异常 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#47](https://github.com/liseami/DeepRant/issues/47) window这个包为什么打不开 | 交付与社区反馈 | 重建用户流程和安装发布；源码固定、哈希和签名更新。安全软件误报仍由供应商判定，不承诺零误报。 |
-| [#48](https://github.com/liseami/DeepRant/issues/48) 请求支持游戏《风暴英雄》 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#49](https://github.com/liseami/DeepRant/issues/49) 请求给常用语添加一个开关 | 快捷键与常用语 | 可配置、小键盘/F 键、冲突回滚、逐条/整体开关；默认关闭。 |
-| [#50](https://github.com/liseami/DeepRant/issues/50) 开发者这是弃坑了？ | 交付与社区反馈 | 重建用户流程和安装发布；源码固定、哈希和签名更新。安全软件误报仍由供应商判定，不承诺零误报。 |
-| [#51](https://github.com/liseami/DeepRant/issues/51) API测试失败：Failed to featch | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#52](https://github.com/liseami/DeepRant/issues/52) Windows英雄联盟无法在游戏内使用 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#53](https://github.com/liseami/DeepRant/issues/53) 申请将302.AI添加至DeepRant的模型供应商板块 -- 来自302.AI | 产品边界 | 自定义兼容端点满足 API 接入；不接受商务合作、不发布手机客户端。王者荣耀桌面语境已加入。 |
-| [#54](https://github.com/liseami/DeepRant/issues/54) 请求增加《星际公民》 聊天频道翻译的支持 | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#55](https://github.com/liseami/DeepRant/issues/55) 希望添加更改常用语快捷键的功能 | 快捷键与常用语 | 可配置、小键盘/F 键、冲突回滚、逐条/整体开关；默认关闭。 |
-| [#56](https://github.com/liseami/DeepRant/issues/56) 用不了吗，翻译不行了 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#57](https://github.com/liseami/DeepRant/issues/57) 用不了的兄弟自己注册个大模型的key就行了 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#58](https://github.com/liseami/DeepRant/issues/58) 我更新了下这个项目 | 交付与社区反馈 | 重建用户流程和安装发布；源码固定、哈希和签名更新。安全软件误报仍由供应商判定，不承诺零误报。 |
-| [#60](https://github.com/liseami/DeepRant/issues/60) 游戏模式可以增加一个自定义？ | 游戏、自定义语境与语言 | 场景目录覆盖游戏请求，自定义提示词与术语表；英式英语、中文直出与中英界面。 |
-| [#61](https://github.com/liseami/DeepRant/issues/61) MAC的英雄联盟游戏作战内部快捷键无反应 | 系统输入与权限 | 原生输入事务、释放修饰键、复制成功核验、焦点与原文保护；受限输入框使用手动翻译，未声称实测所有游戏。 |
-| [#62](https://github.com/liseami/DeepRant/issues/62) json输入报错 | 凭据与模型请求 | 自用 Key → 系统凭据库；测试与翻译同一原生请求管道；端点归一和响应诊断。 |
-| [#63](https://github.com/liseami/DeepRant/issues/63) 按键设置问题 | 快捷键与常用语 | 可配置、小键盘/F 键、冲突回滚、逐条/整体开关；默认关闭。 |
+| [#5](https://github.com/liseami/DeepRant/issues/5) | 原生按键代替脚本，释放修饰键后调度；状态不再写进聊天，重复触发拒绝；可选浮窗输入。 | Windows / Dota 现场待验收。 |
+| [#10](https://github.com/liseami/DeepRant/issues/10) | 五个主页面与浮窗可切换中文 / English；README 中文默认、独立英文入口。 | 原生系统诊断当前仍以中文呈现。 |
+| [#17](https://github.com/liseami/DeepRant/issues/17) | 彩虹六号与全境封锁2的独立术语语境。 | 不等于实测反作弊兼容。 |
+| [#20](https://github.com/liseami/DeepRant/issues/20) | 漫威争锋语境。 | 游戏现场待验收。 |
+| [#21](https://github.com/liseami/DeepRant/issues/21) | Windows 原生输入与权限 / 焦点诊断，不再依赖 PowerShell 执行策略。 | Windows 本轮代码尚未运行。 |
+| [#24](https://github.com/liseami/DeepRant/issues/24) | 永劫无间语境。 | 游戏现场待验收。 |
+| [#26](https://github.com/liseami/DeepRant/issues/26) | 战舰世界与评论中的坦克世界均有独立语境；可用术语对照表纠正船名和车型。 | 未内置完整船名 / 车型数据库。 |
+| [#28](https://github.com/liseami/DeepRant/issues/28) | 原文决定队友 / 对手对象，不添 ES / NA / 河南等对象或地区；共享输入锁防止翻译状态成为下一次原文。 | 模型输出质量需真实服务验收。 |
+| [#29](https://github.com/liseami/DeepRant/issues/29) | 王者荣耀黑话已有桌面语境；沿原作者回复保留桌面产品边界，本轮不发布手机客户端。 | 手机客户端需求未采纳。 |
+| [#32](https://github.com/liseami/DeepRant/issues/32) | 英式英语明确采用英国拼写和措辞；禁止依据语言虚构玩家地区。 | 模型表达质量待验收。 |
+| [#33](https://github.com/liseami/DeepRant/issues/33) | 日常模式保留犀利 / 专业 / 自然风格，通用提示词可配置社区回复偏好。 | 不自动抓取社交账号或评论。 |
+| [#34](https://github.com/liseami/DeepRant/issues/34) | 删除现行共享 Key，个人 Key 进系统凭据库，不回传 WebView；依赖日志限警告，聊天不进调试日志。 | 历史泄露凭据仍需供应商后台撤销。 |
+| [#35](https://github.com/liseami/DeepRant/issues/35) | LoL 默认热键输入浮窗，不再要求聊天框能复制，确认后回填 Unicode。 | 浮窗写新消息；不声称读取游戏已有聊天内容，游戏现场待验收。 |
+| [#36](https://github.com/liseami/DeepRant/issues/36) | 去除脚本注入、锁定依赖、安装器与更新签名验收链。 | 未配置 Windows Authenticode 证书，杀软信誉不能由代码保证。 |
+| [#37](https://github.com/liseami/DeepRant/issues/37) | 燕云十六声语境。 | 游戏现场待验收。 |
+| [#39](https://github.com/liseami/DeepRant/issues/39) | 中文同语种润色、复制结果、QQ / 微信日常输入、通用提示词、可编辑短语与浮窗。 | QQ / 微信和 Windows 游戏现场待验收。 |
+| [#40](https://github.com/liseami/DeepRant/issues/40) | 系统凭据、原生输入、修饰键释放和请求超时；无需放宽 PowerShell 策略。 | Win10 现场待验收；历史 Key 撤销独立处理。 |
+| [#41](https://github.com/liseami/DeepRant/issues/41) | 当前腾讯 TokenHub 广州 / 新加坡预设，支持 DeepSeek；旧 R1 可通过兼容端点 / 本地部署配置。 | 腾讯旧 R1 已下线，不承诺免费；地区 Key 需对应服务。 |
+| [#42](https://github.com/liseami/DeepRant/issues/42) | 漫威争锋语境，不用 Steam / 网易进程名单限制调用。 | 两发行版本现场待验收。 |
+| [#43](https://github.com/liseami/DeepRant/issues/43) | 梦三国语境。 | 游戏现场待验收。 |
+| [#44](https://github.com/liseami/DeepRant/issues/44) | LoL 输入浮窗与原窗口身份恢复，避开复制限制。 | Windows 游戏现场待验收。 |
+| [#45](https://github.com/liseami/DeepRant/issues/45) | 硅基预设，根地址 / v1 / 完整请求地址幂等归一，解析最终 content。 | 需要用户有效 Key 与供应商模型权限。 |
+| [#46](https://github.com/liseami/DeepRant/issues/46) | R1 兼容开关、中文直出、仅思考 / 截断 / 空内容明确诊断；错误不粘贴进聊天。 | 真实 R1 / QQ / Dota 服务现场待验收。 |
+| [#47](https://github.com/liseami/DeepRant/issues/47) | 当前用户 NSIS，安装 / 启动 / 卸载脚本及 Windows Common Controls manifest 修复。 | 本轮 Windows 原生检查和安装器验收待运行。 |
+| [#48](https://github.com/liseami/DeepRant/issues/48) | 风暴英雄语境。 | 游戏现场待验收。 |
+| [#49](https://github.com/liseami/DeepRant/issues/49) | 常用语整体 / 逐条开关及自定义快捷键，默认整体关闭。 | 注册事务有原生单测。 |
+| [#50](https://github.com/liseami/DeepRant/issues/50) | 维护升级和本机新包交付，发布分支验收流程已准备。 | 公开 2.0 尚未发布。 |
+| [#51](https://github.com/liseami/DeepRant/issues/51) | 测连改 Rust 请求，移除前端 fetch / CORS 故障路径；保留可复制安全诊断。 | 真实供应商连接需有效 Key。 |
+| [#52](https://github.com/liseami/DeepRant/issues/52) | LoL 浮窗不依赖 Client / Game 进程白名单；完整 DeepSeek endpoint 可用。 | Windows 游戏现场待验收。 |
+| [#53](https://github.com/liseami/DeepRant/issues/53) | 302.AI OpenAI 兼容预设，技术接入独立实现。 | 不代表接受商务合作。 |
+| [#54](https://github.com/liseami/DeepRant/issues/54) | 星际公民术语语境、消息浮窗与当前选中文字翻译。 | 未实现连续频道读取 / OCR；没有测试账号会话。 |
+| [#55](https://github.com/liseami/DeepRant/issues/55) | 常用语默认不占 Dota 的 Alt / 数字键，逐条开关、录制改键与冲突回滚。 | 系统注册冲突有原生单测。 |
+| [#56](https://github.com/liseami/DeepRant/issues/56) | 个人 Key 配置、OS 凭据状态和测连，取消过期共享 Key。 | 供应商余额和权限由用户账户决定。 |
+| [#57](https://github.com/liseami/DeepRant/issues/57) | 最新官方 DeepSeek ID / 根地址预设，兼容完整地址，清晰配置与连接诊断。 | 官方服务仍需用户 Key。 |
+| [#58](https://github.com/liseami/DeepRant/issues/58) | 独立实现自定义场景与短语 CRUD，没有合并 fork。 | 本机代码检查覆盖基础契约。 |
+| [#60](https://github.com/liseami/DeepRant/issues/60) | 自定义游戏名称 / 场景提示词、全场景术语表，以及日常可用的通用提示词。 | 词表解释效果依赖所选模型。 |
+| [#61](https://github.com/liseami/DeepRant/issues/61) | macOS LoL 浮窗用原应用 / 窗口身份恢复，可缺少 AX 聊天控件，辅助功能权限仍必要。 | 用户负责游戏与视觉现场验收。 |
+| [#62](https://github.com/liseami/DeepRant/issues/62) | Rust 明确区分空响应 / 非 JSON / 无最终文本，不再直接调用前端 Response.json。 | 响应解析有原生单测。 |
+| [#63](https://github.com/liseami/DeepRant/issues/63) | 物理 code 录制，小键盘数字 / F 键单键，释放修饰键后执行，应用内冲突回滚。 | NumLock 必须开启；Windows 无法区分 NumpadEnter / Equal，明确拒绝。 |
 
-## PR 请求与处理
+## PR 诉求独立吸收
 
-- [#38](https://github.com/liseami/DeepRant/pull/38)：希望本地 DeepSeek-R1 可用。旧改动依赖名称前缀判断、仍使用旧共享请求路径。本轮实现可编辑本地端点、无 Key 的回环服务，以及隔离最终文本和 `<think>` 输出；不合并原 diff。
-- [#59](https://github.com/liseami/DeepRant/pull/59)：希望 Anthropic、原生测连、Base URL 与错误诊断。方向被本轮独立实现吸收；原 diff 仍输出 Key 前缀并保留双请求路径与旧发布流程，不合并原 diff。
+- [#38](https://github.com/liseami/DeepRant/pull/38)：本地 DeepSeek-R1。Ollama R1 预设、无需 Key 的回环端点、单 user 回合兼容、推理预算 / 超时、think 块剥离均已独立实现；过滤不再丢掉有效前文。原 PR 未合并。
+- [#59](https://github.com/liseami/DeepRant/pull/59)：Anthropic Messages、原生测连、Base URL 归一和详细诊断均已独立实现；可复制诊断只包含安全字段。没有吸收 Key 前缀日志、原始响应、重复请求管道或更换更新信任根。原 PR 未合并。
 
-## 验证与限制
+## 验证与交付
 
-主 Agent 负责本机契约检查、前端构建、原生单测、clippy 和 UI 验收；CI 负责 Windows 原生检查、安装/启动/卸载及 macOS 双架构最终产物验收。子 Agent 未运行 build/test/typecheck，交付即清理 worktree。
+主 Agent 执行前端构建、契约检查、原生单测、clippy 与本机包技术核验。用户负责全部视觉与游戏现场验收。子 Agent 不运行 build / test / typecheck，整合后清理 worktree 与中间产物。
 
-LoL 等游戏限制复制或不公开焦点时，自动翻译明确失败并保留输入，使用手动翻译作为可用路径。未声称绕过游戏反作弊、UIPI 或全部杀毒产品信誉判定。历史源码共享 Key 的撤销必须在供应商后台完成；当前项目没有可以代表供应商撤销凭据的授权会话。
+本机包沿 CCBaga 的 debug / custom-protocol / 临时签名 / 事务重装流程，每次重新生成。公开发布沿 CCBaga 的最终字节签名、DMG 布局和安装验收流程；当前遵循只 commit、不 push 的指示。Windows 原生与安装检查、真实供应商和游戏验收未完成，不能把这些条目按已验证 bug 修复关闭。
+
+供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 官方兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
