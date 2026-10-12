@@ -1,7 +1,7 @@
 /**
- * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、ai_translator 模型管道、game_composer 独立输入会话。
- * [OUTPUT]: 受校验的设置/翻译/游戏输入 IPC；启动和 macOS Reopen 激活主窗口，浮窗关闭取消输入。
- * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键注册与持久化一起提交；日志限警告，避免依赖的调试日志记录聊天原文。
+ * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、模型与游戏输入管道、input_diagnostics 的权限和阶段快照。
+ * [OUTPUT]: 设置/翻译/输入诊断 IPC；Ready 先激活主窗口，再在阻塞线程初始化凭据与快捷键。
+ * [POS]: 仅编排边界模块；主线程不等待 Keychain，输入失败显示主窗口，浮窗关闭取消；警告日志不记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use tauri::Manager;
@@ -9,6 +9,7 @@ pub mod ai_translator;
 mod composer_target;
 pub mod credentials;
 pub mod game_composer;
+pub mod input_diagnostics;
 pub mod model_presets;
 pub mod scenes;
 pub mod shell_helper;
@@ -215,7 +216,7 @@ async fn delete_phrase(
     .await
 }
 
-fn show_main(app: &tauri::AppHandle) {
+pub(crate) fn show_main(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(target_os = "macos")]
         let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -240,14 +241,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let handle = app.handle();
-            if let Err(error) = store::initialize_settings(handle) {
-                log::error!("初始化设置失败: {error}");
-            }
-            if let Err(error) = shortcut::init_shortcuts(handle) {
-                log::warn!("快捷键注册失败: {error}");
-            }
-            tray::create_tray(handle)?;
+            tray::create_tray(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -269,6 +263,8 @@ pub fn run() {
             test_model_connection,
             translate_text,
             get_shortcut_status,
+            input_diagnostics::get_input_diagnostics,
+            input_diagnostics::open_input_permissions,
             set_shortcuts_paused,
             update_translator_shortcut,
             update_phrase,
@@ -284,7 +280,30 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("DeepRant desktop runtime failed")
         .run(|app, event| match event {
-            tauri::RunEvent::Ready => show_main(app),
+            tauri::RunEvent::Ready => {
+                show_main(app);
+                let app = app.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    shell_helper::report_status(&app, "initializing", "正在初始化设置与系统快捷键");
+                    if let Err(error) = store::initialize_settings(&app) {
+                        shell_helper::report_status(
+                            &app,
+                            "error",
+                            &format!("初始化设置失败：{error}"),
+                        );
+                        return;
+                    }
+                    if let Err(error) = shortcut::init_shortcuts(&app) {
+                        shell_helper::report_status(
+                            &app,
+                            "error",
+                            &format!("快捷键注册失败：{error}"),
+                        );
+                        return;
+                    }
+                    shell_helper::report_status(&app, "ready", "翻译快捷键已注册，等待输入");
+                });
+            }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { .. } => show_main(app),
             _ => {}
