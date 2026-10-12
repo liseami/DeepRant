@@ -22,6 +22,7 @@ mod settings_db;
 pub mod shell_helper;
 pub mod shortcut;
 pub mod store;
+mod translation_prompt;
 pub mod tray;
 #[cfg(test)]
 mod updater_tests;
@@ -314,6 +315,8 @@ pub fn run() {
             copy_input_recovery,
             test_model_connection,
             translate_text,
+            translation_prompt::get_translation_prompt,
+            translation_prompt::copy_translation_prompt,
             get_shortcut_status,
             input_diagnostics::get_input_diagnostics,
             input_diagnostics::open_input_permissions,

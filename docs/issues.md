@@ -6,7 +6,7 @@
 -->
 # DeepRant 2.0 需求与验收记录
 
-调查日期：2026-10-12。39 个开放 issue、2 个开放 PR，正文和评论已逐条阅读。需求由本项目独立实现，没有合并外部 PR。这里记录代码与验证证据；GitHub 尚未关闭问题，2.0 尚未公开发布。
+调查日期：2026-10-12。39 个开放 issue、2 个开放 PR，正文和评论已逐条阅读。需求由本项目独立实现，没有合并外部 PR。这里记录代码与验证证据；当前公开产物与逐条处理进度以 GitHub Releases / Issues / PR 为准。
 
 ## 架构落点
 
@@ -15,6 +15,8 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 所有输入方式共用语言、表达风格、通用提示词和术语表。API 连接测试与翻译共用原生请求，凭据存入系统凭据库；诊断只含服务名、协议、模型、耗时与脱敏错误。普通模型预算 2048 token / 60 秒，通用推理兼容预算 16384 token / 120 秒，仅解析最终文本；轻量预设为官方 OpenAI `gpt-6-luna` 与本地 Qwen3.5 4B，不再展示专用 R1 入口。官方 OpenAI 默认禁用思考、兼容开启使用低推理强度，非官方兼容端点保留单 user 回合以支持旧本地模型；Anthropic 请求不受这些扩展字段影响。
 
 模型预设、端点策略、系统剪贴板、固定外链、随包录屏路径和更新生命周期全部由 Rust 执行；前端已移除系统插件依赖及权限，仅渲染原生快照与编辑草稿。SQLite 迁移包含事务失败、损坏数据与直接根节点旧配置的回归检查，全部设置往返无丢失。
+
+嘴臭模式采用西海岸 battle / diss / punchline 和自然粗口，允许同对象的创造性措辞；全局自定义提示词优先决定语气和长度。模型请求、界面完整生效预览和显式复制均消费 Rust 同一个生成函数，保存后立即用于全部输入方式。
 
 ## 逐条覆盖
 
@@ -46,7 +48,7 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#47](https://github.com/liseami/DeepRant/issues/47) | 当前用户 NSIS，安装 / 启动 / 卸载脚本及 Windows Common Controls manifest 修复。 | 本轮 Windows 原生检查和安装器验收待运行。 |
 | [#48](https://github.com/liseami/DeepRant/issues/48) | 风暴英雄语境。 | 游戏现场待验收。 |
 | [#49](https://github.com/liseami/DeepRant/issues/49) | 常用语整体 / 逐条开关及自定义快捷键，默认整体关闭。 | 注册事务有原生单测。 |
-| [#50](https://github.com/liseami/DeepRant/issues/50) | 维护升级和本机新包交付，发布分支验收流程已准备。 | 公开 2.0 尚未发布。 |
+| [#50](https://github.com/liseami/DeepRant/issues/50) | 维护升级和本机新包交付，发布分支验收流程已准备。 | 公开发行状态见 release 工作流与安装包。 |
 | [#51](https://github.com/liseami/DeepRant/issues/51) | 测连改 Rust 请求，移除前端 fetch / CORS 故障路径；保留可复制安全诊断。 | 真实供应商连接需有效 Key。 |
 | [#52](https://github.com/liseami/DeepRant/issues/52) | LoL 浮窗不依赖 Client / Game 进程白名单；完整 DeepSeek endpoint 可用。 | Windows 游戏现场待验收。 |
 | [#53](https://github.com/liseami/DeepRant/issues/53) | 302.AI OpenAI 兼容预设，技术接入独立实现。 | 不代表接受商务合作。 |
