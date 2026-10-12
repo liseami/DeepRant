@@ -1,7 +1,7 @@
 /**
  * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、ai_translator 模型管道、game_composer 独立输入会话。
  * [OUTPUT]: 受校验的设置/常用语/翻译/游戏输入 IPC 与桌面生命周期；浮窗关闭使用取消事务。
- * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键变更与系统注册一起提交。
+ * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键注册与持久化一起提交；日志限警告，避免依赖的调试日志记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use tauri::Manager;
@@ -229,7 +229,11 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             show_main(app)
         }))
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Warn)
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())

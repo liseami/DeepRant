@@ -31,6 +31,8 @@ function ComposerContent() {
     let unlisten;
     const reset = (next) => {
       if (disposed) return;
+      // -------- 同一会话重显（例如回填失败）必须保留消息与译文草稿 --------
+      if (currentSession.current === next.id) return;
       currentSession.current = next.id;
       setSession(next.id);
       setSource(''); setResult(''); setError(''); setBusy(''); setCopied(false);

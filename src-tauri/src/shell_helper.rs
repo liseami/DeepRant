@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 store 输入方式、game_composer 游戏浮窗、ai_translator 模型请求、clipboard-manager 与 enigo 原生输入；平台 API 提供焦点及修饰键状态
  * [OUTPUT]: 提供 trans_and_replace_text、send_phrase、共享 BusyGuard、Unicode 填入及 deeprant://input-status 事件
- * [POS]: 快捷键共享的串行输入事务。复制必须产生新文本，原文未变且焦点未离开才粘贴；状态和错误只进入 WebView。
+ * [POS]: 快捷键共享串行输入锁；原位操作核验原文和焦点，浮窗回填每个 UTF-16 有界片段检查目标，状态不进入聊天框。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::ai_translator;
@@ -227,10 +227,29 @@ pub(crate) fn type_composed_text(text: &str, check_focus: impl Fn() -> Result<()
         ..Settings::default()
     })
     .map_err(|_| anyhow!("无法输入译文：请检查 macOS 辅助功能权限或 Windows 双方权限级别"))?;
-    check_focus()?;
-    enigo
-        .text(text)
-        .context("系统拒绝文本输入，可能已输入部分文字；请检查游戏聊天框再决定是否重试")
+    // CGEvent 的文本载荷以 UTF-16 计数；不拆代理对，短片段之间重新确认目标。
+    for chunk in unicode_chunks(text) {
+        check_focus().context("焦点已改变，可能已输入部分文字；请检查聊天框后再决定是否重试")?;
+        enigo
+            .text(chunk)
+            .context("系统拒绝文本输入，可能已输入部分文字；请检查游戏聊天框再决定是否重试")?;
+    }
+    Ok(())
+}
+
+fn unicode_chunks(text: &str) -> impl Iterator<Item = &str> {
+    let mut chars = text.char_indices().peekable();
+    std::iter::from_fn(move || {
+        let (start, first) = chars.next()?;
+        let mut units = first.len_utf16();
+        while let Some((_, next)) = chars.peek() {
+            if units + next.len_utf16() > 16 { break; }
+            units += next.len_utf16();
+            chars.next();
+        }
+        let end = chars.peek().map_or(text.len(), |(index, _)| *index);
+        Some(&text[start..end])
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -584,6 +603,14 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unicode_input_preserves_surrogate_pairs_and_bounded_event_payloads() {
+        let text = "🙂😀😅😉😊😂😍😎🤓🥳你好 team — go mid";
+        let chunks: Vec<_> = unicode_chunks(text).collect();
+        assert_eq!(chunks.concat(), text);
+        assert!(chunks.iter().all(|chunk| chunk.encode_utf16().count() <= 16));
+        assert!(unicode_chunks("").next().is_none());
+    }
     #[test]
     fn input_transactions_reject_reentry_and_release_after_drop() {
         let first = BusyGuard::acquire().unwrap();
