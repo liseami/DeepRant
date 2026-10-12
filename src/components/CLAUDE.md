@@ -9,6 +9,6 @@ Sidebar.jsx: Cromma NavButton 与 Pika 图标的五项游戏业务导航及界�
 AppDialog.jsx: CCBaga Radix + ModalShell 受控模态，调用方持有编辑草稿，关闭后恢复先前焦点。
 HotkeyRecorder.jsx: KeyboardEvent.code 录制边界，暂停已有快捷键，注册交给后端。
 BackgroundStatus.jsx: 原生输入事件桥；权限错误打开系统设置，无法回滚时显式复制内存原文，不通过事件传递聊天文本。
-UpdateManager.jsx: 常驻更新流程，先检查并展示版本，用户点击后安装，释放未使用资源。
+UpdateManager.jsx: 原生更新快照的常驻视图，订阅版本/累计进度并发送用户意图；不持有资源、忙态或业务状态机。
 DeveloperNote.jsx: 原开发者社交/课程区，沿同款组件保留准确产品说明；只传固定外链 ID，系统浏览器由 Rust 打开。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

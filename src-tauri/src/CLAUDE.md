@@ -20,5 +20,6 @@ inline_translation.rs: 可见占位的原位生命周期；当前占位选区精
 game_composer.rs: 独立游戏输入浮窗与 token 会话；重复快捷键只聚焦，提交失败保留草稿，取消释放输入锁。
 composer_target.rs: 原游戏应用/窗口生命周期与焦点确认；无游戏 hook 或键盘监听，恢复真实焦点后允许写入。
 tray.rs: 托盘菜单与窗口可见性。
+desktop_updates.rs: 更新唯一权威，主窗口意图与单调快照；原生资源/累计进度/后台安装，旧编号与版本拒绝安装，官方签名版本验证后才替换。
 updater_tests.rs: 官方 updater 签名信任边界；校验真实发布字节、篡改拒绝和版本绑定。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

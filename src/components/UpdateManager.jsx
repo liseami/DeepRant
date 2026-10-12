@@ -1,100 +1,57 @@
 /**
- * [INPUT]: 依赖 Tauri updater / process、Cromma UI 控件、托盘更新事件和关于页请求
- * [OUTPUT]: 提供更新发现、累计下载进度、明确安装按钮与重启操作
- * [POS]: 常驻更新控制边界，未安装的 Update 资源在关闭时释放
+ * [INPUT]: Rust 更新快照与用户意图命令、Cromma UI 控件、托盘检查请求。
+ * [OUTPUT]: 渲染可用版本/下载进度/原生错误，按钮仅提交明确安装、关闭或重启意图。
+ * [POS]: 常驻更新展示边界；资源、忙态、签名校验与完整状态机全部属于 desktop_updates。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
 import { Panel, Button } from 'cromma-ui';
 import { useStore } from './StoreProvider';
-import { showError, showSuccess } from '../utils/toast';
-import { UPDATE_EVENT } from '../utils/updater';
+import { showError } from '../utils/toast';
+import { requestUpdateCheck } from '../utils/updater';
 
 export default function UpdateManager() {
   const { t } = useStore();
-  const [update, setUpdate] = useState(null);
-  const [status, setStatus] = useState('');
-  const [percent, setPercent] = useState(null);
-  const running = useRef(false);
-  const resource = useRef(null);
-  const checkRef = useRef(null);
-
-  async function dismiss() {
-    const previous = resource.current;
-    resource.current = null;
-    setUpdate(null);
-    setStatus('');
-    if (previous) await previous.close().catch(showError);
-  }
-
-  async function checkUpdates() {
-    if (running.current) return;
-    running.current = true;
-    setStatus('checking');
-    try {
-      if (resource.current) await resource.current.close().catch(showError);
-      resource.current = null;
-      setUpdate(null);
-      const next = await check();
-      resource.current = next;
-      setUpdate(next);
-      setStatus(next ? 'available' : '');
-      if (!next) showSuccess(t('latestVersion'));
-    } catch (failure) { setStatus(''); showError(failure); }
-    finally { running.current = false; }
-  }
-  checkRef.current = checkUpdates;
+  const [snapshot, setSnapshot] = useState(null);
 
   useEffect(() => {
     let closed = false;
-    let unlisten;
-    const request = () => checkRef.current();
-    window.addEventListener(UPDATE_EVENT, request);
-    listen('deeprant://check-update', request).then(dispose => { if (closed) dispose(); else unlisten = dispose; }).catch(showError);
-    return () => {
-      closed = true;
-      window.removeEventListener(UPDATE_EVENT, request);
-      unlisten?.();
-      resource.current?.close().catch(showError);
+    const disposers = [];
+    const receive = (next) => {
+      if (!closed) setSnapshot(current => current && current.revision > next.revision ? current : next);
     };
+    const register = (dispose) => { if (closed) dispose(); else disposers.push(dispose); };
+    listen('deeprant://update-state', event => receive(event.payload))
+      .then(dispose => {
+        register(dispose);
+        if (!closed) invoke('get_desktop_update_state').then(receive).catch(showError);
+      }).catch(showError);
+    listen('deeprant://check-update', requestUpdateCheck).then(register).catch(showError);
+    return () => { closed = true; disposers.forEach(dispose => dispose()); };
   }, []);
 
-  async function install() {
-    if (!update || running.current) return;
-    running.current = true;
-    setStatus('downloading');
-    setPercent(null);
-    let downloaded = 0;
-    let total = 0;
-    try {
-      await update.downloadAndInstall(event => {
-        if (event.event === 'Started') total = event.data.contentLength || 0;
-        else if (event.event === 'Progress') {
-          downloaded += event.data.chunkLength;
-          if (total > 0) setPercent(Math.min(100, Math.round(downloaded * 100 / total)));
-        }
-      });
-      setStatus('installed');
-      showSuccess(t('updateInstalled'));
-      await relaunch();
-    } catch (failure) { setStatus(current => current === 'installed' ? current : 'available'); showError(failure); }
-    finally { running.current = false; }
-  }
+  if (!snapshot || snapshot.phase === 'idle') return null;
+  const { phase, version, body, percent, error, updateId } = snapshot;
+  const title = {
+    checking: 'checkingUpdates', available: 'updateAvailable', downloading: 'downloadingUpdate',
+    installing: 'installUpdate', installed: 'updateInstalled', latest: 'latestVersion', error: 'checkUpdates',
+  }[phase];
+  const send = (command) => invoke(command, { updateId, version }).catch(showError);
 
-  if (!status) return null;
   return <Panel className="fixed bottom-6 right-6 z-50 max-w-md p-6 shadow-lg" role="status" aria-live="polite">
-    <h2>{t(status === 'checking' ? 'checkingUpdates' : status === 'downloading' ? 'downloadingUpdate' : status === 'installed' ? 'updateInstalled' : 'updateAvailable')}</h2>
-    {update && <p>{t('version')} {update.version}</p>}
-    {status === 'available' && update?.body && <p className="note" style={{ whiteSpace: 'pre-wrap', maxHeight: 140, overflow: 'auto', marginTop: 10 }}>{update.body}</p>}
-    {status === 'downloading' && percent !== null && <p>{percent}%</p>}
+    <h2>{t(title)}</h2>
+    {version && <p>{t('version')} {version}</p>}
+    {phase === 'available' && body && <p className="note" style={{ whiteSpace: 'pre-wrap', maxHeight: 140, overflow: 'auto', marginTop: 10 }}>{body}</p>}
+    {phase === 'downloading' && percent !== null && <p>{percent}%</p>}
+    {error && <p className="note mt-3">{error}</p>}
     <div className="mt-4 flex items-center gap-2">
-      {status === 'available' && <Button type="button" variant="ink" onClick={install}>{t('installUpdate')}</Button>}
-      {status === 'installed' && <Button type="button" variant="ink" onClick={() => relaunch().catch(showError)}>{t('restartApp')}</Button>}
-      {status === 'available' && <Button type="button" variant="secondary" onClick={dismiss}>{t('cancel')}</Button>}
+      {phase === 'available' && <Button type="button" variant="ink" onClick={() => send('install_desktop_update')}>{t('installUpdate')}</Button>}
+      {phase === 'installed' && <Button type="button" variant="ink" onClick={() => send('restart_after_desktop_update')}>{t('restartApp')}</Button>}
+      {phase === 'error' && <Button type="button" variant="ink" onClick={requestUpdateCheck}>{t('checkUpdates')}</Button>}
+      {['available', 'latest', 'error'].includes(phase) && <Button type="button" variant="secondary" onClick={() => send('dismiss_desktop_update')}>{t('cancel')}</Button>}
     </div>
   </Panel>;
 }
