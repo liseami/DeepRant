@@ -132,16 +132,15 @@ Restricted fields can still use **Auxiliary translation** in Modes; copy the res
 | Configuration | Protocol and purpose |
 | --- | --- |
 | DeepSeek Flash / Pro | Official service presets using your own key; preset IDs are `deepseek-flash` / `deepseek-v4-pro` |
-| OpenAI / custom compatible service | Chat Completions; enter a service root, `/v1`, or a complete `/chat/completions` endpoint |
+| OpenAI / custom compatible service | The official lightweight preset uses `gpt-6-luna` with Chat Completions; enter a service root, `/v1`, or a complete `/chat/completions` endpoint |
 | Anthropic | Messages protocol with a matching endpoint and model ID |
 | Tencent TokenHub · Guangzhou / Singapore | Separate regional presets with credentials for each endpoint |
 | SiliconFlow / 302.AI | Editable compatible-service presets; model availability and quotas are provider-managed |
-| Ollama | Defaults to `http://localhost:11434/v1`; the model name must match one installed locally. No API key required |
-| Ollama · DeepSeek R1 | Starts with `deepseek-r1:8b` and explicitly enables R1-compatible parameters |
+| Ollama · Qwen3.5 4B | Defaults to `http://localhost:11434/v1` and `qwen3.5:4b`. Match a locally installed model or choose your own. No API key required |
 
 Every preset is editable. Endpoint, model ID and access must match your provider account. Remote services require HTTPS; HTTP is accepted only for local loopback addresses. Rust normalizes the final endpoint for the chosen protocol. Connection testing and translation use the same request pipeline.
 
-The R1-compatible profile allows 120 seconds and 16,384 output tokens for reasoning and the final answer; ordinary requests use a 60-second timeout. Only final text is accepted. `reasoning_content` and `<think>` content are not used as translations, and truncated results are not automatically inserted into game chat.
+Reasoning models can use the general reasoning compatibility option when supported by their service. It allows 120 seconds and 16,384 output tokens for reasoning and the final answer; ordinary requests use 2,048 tokens and a 60-second timeout. The official lightweight OpenAI preset disables reasoning by default and uses low effort when compatibility is enabled. Other compatible services follow their respective protocols; the option is not tied to one model generation. Only final text is accepted. `reasoning_content` and `<think>` content are not used as translations, and truncated results are not automatically inserted into game chat.
 
 After testing a connection, copy a safe diagnostic containing server, protocol, model, elapsed time and a sanitized result. It contains no API key or raw server response. Leaving the key draft empty preserves existing credentials; use the explicit delete action to remove them.
 
