@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 store 的 daily_mode 与翻译设置；依赖 clipboard 读写；依赖 enigo 0.3 注入组合键
  * [OUTPUT]: 提供 trans_and_replace_text、has_text_selection、send_phrase
  * [POS]: 剪贴板翻译与常用语粘贴的唯一入口。shortcut 只调用这里。按键走 enigo 的 SendInput / CGEvent，禁止再调 PowerShell / osascript。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 use crate::ai_translator;

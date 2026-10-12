@@ -2,7 +2,7 @@
  * [INPUT]: 无运行时依赖。code 对应 country-flag-icons 的 3x2 国旗。
  * [OUTPUT]: 提供翻译方向语言表，含英式英语。
  * [POS]: TranslationDirectionCard 的唯一语言来源。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 export const LANGUAGES = {

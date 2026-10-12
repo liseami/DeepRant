@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 store 初始化、shortcut 注册、tray 创建、provider 测连
  * [OUTPUT]: 暴露设置、快捷键、常用语与模型测连命令；启动整个 Tauri 应用
  * [POS]: 后端入口。新命令只在这里登记，实现放回各模块。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 use crate::store::initialize_settings;

@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 tauri_plugin_store 的 JSON 持久化；依赖 serde 反序列化旧版 store.json
  * [OUTPUT]: 提供 AppSettings / Phrase / HotkeyConfig / ModelConfig，以及字段级更新与常用语 CRUD
  * [POS]: 设置的唯一写入口。shortcut 与 ai_translator 只读这里。旧字段缺失时用默认值，禁止因升级崩盘。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 use serde_json::{json, Value};

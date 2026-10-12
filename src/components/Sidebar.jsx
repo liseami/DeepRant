@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 useStore 的 settings.ui_language 与 I18N 词典
  * [OUTPUT]: 提供侧栏导航与 zh|en 切换。写入 ui_language。
  * [POS]: Layout 的左侧导航。不负责页面内容。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { motion } from 'framer-motion';

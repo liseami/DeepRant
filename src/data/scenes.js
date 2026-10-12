@@ -2,7 +2,7 @@
  * [INPUT]: 无运行时依赖。id 必须与 src-tauri/src/scenes.rs 的 SCENES 对齐。
  * [OUTPUT]: 提供游戏场景目录。custom 走用户自填名称与提示词。
  * [POS]: 前端场景名单的唯一来源。GameSceneCard 只读这里。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 export const GAMES = {

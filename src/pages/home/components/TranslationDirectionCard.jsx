@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 LANGUAGES from data/languages；依赖 country-flag-icons；依赖 I18N；依赖 useStore 的 translation_from / translation_to
  * [OUTPUT]: 提供翻译方向选择与互换。en-GB 走 GB 国旗。
  * [POS]: 首页三卡之一。只读 languages.js，不维护本地名单。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { motion } from 'framer-motion';

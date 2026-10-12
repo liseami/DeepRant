@@ -2,7 +2,7 @@
  * [INPUT]: 无运行时依赖。键名对齐 Sidebar 的 id 与首页卡片标题。
  * [OUTPUT]: 提供 I18N 词典。仅覆盖侧栏与少量卡片标题。
  * [POS]: 轻量 UI 文案来源。不是全站 i18n 框架。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 export const I18N = {

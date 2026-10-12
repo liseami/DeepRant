@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 store 的模型与翻译设置；依赖 scenes 的场景提示词
  * [OUTPUT]: 提供 translate_with_gpt 与 test_model_connection
  * [POS]: 唯一的模型调用点。禁止写死 API Key。URL 归一与响应解析放本文件。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 use anyhow::Result;

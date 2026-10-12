@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 store 的 HotkeyConfig；依赖 shell_helper 执行翻译与常用语
  * [OUTPUT]: 提供全局快捷键注册、keys_to_hotkey 解析、reload_shortcuts
  * [POS]: 快捷键的唯一注册点。常用语开关关闭时不注册短语键。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 use crate::shell_helper::{send_phrase, trans_and_replace_text};

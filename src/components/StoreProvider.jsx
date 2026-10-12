@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 @tauri-apps/plugin-store 的 store.json；默认值对齐 Rust AppSettings
  * [OUTPUT]: 提供 settings 与 updateSettings。浅合并写入，不丢未改字段。
  * [POS]: 前端设置的读缓存。常用语与快捷键写路径走 invoke，再回写这里。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createContext, useContext, useState, useEffect } from 'react';

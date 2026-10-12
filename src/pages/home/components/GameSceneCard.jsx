@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 GAMES from data/scenes；依赖 I18N；依赖 useStore 的 game_scene / daily_mode / custom_scene_*
  * [OUTPUT]: 提供游戏场景选择、日常模式开关、自定义场景名称与提示词
  * [POS]: 首页三卡之一。只读 scenes.js，不维护本地名单。
- * [PROTOCOL]: Update this header on change, then check CLAUDE.md
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useState, useEffect } from 'react';
