@@ -1,7 +1,13 @@
+<!--
+[INPUT]: 2.0 实现落点、模型预设及平台交付边界。
+[OUTPUT]: 发布工作流读取的版本说明，区分新增能力、升级提示与待验收事实。
+[POS]: 当前版本的交付说明，不替代 README 使用文档或 issues 的逐条证据记录。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
 # DeepRant 2.0.0
 
 - 升级至 Tauri 2.12.3 / CLI 2.12.2，Vite 8.3.4 和 Tailwind CSS 4.3.3；移除脚本注入与失实共享额度。原游戏界面骨架、开发者页和录屏保留，视觉使用 CCBaga 同源 Laper App 组件 / Pika 系统。
-- DeepSeek Flash / Pro、腾讯 TokenHub 广州 / 新加坡、硅基流动、302.AI、OpenAI、Anthropic 和 Ollama 共用原生请求。支持 Base URL 归一与安全诊断复制；R1 兼容使用单 user 回合与独立推理预算，仅输出最终文本。
+- DeepSeek Flash / Pro、腾讯 TokenHub 广州 / 新加坡、硅基流动、302.AI、OpenAI、Anthropic 和 Ollama 共用原生请求。支持 Base URL 归一与安全诊断复制；轻量配置采用 OpenAI `gpt-6-luna` 与本地 Qwen3.5 4B，推理模型提供通用兼容参数与独立输出预算，仅输出最终文本。
 - 自用 Key 存入系统凭据库，前端不读回密钥。旧配置安全迁移；不再提供内置共享 Key。
 - 原位输入等待修饰键释放，核验复制、焦点与原文变化；状态不污染聊天。LoL 默认游戏输入浮窗：先开空聊天框，快捷键写消息、翻译预览、确认后 Unicode 回填；无需复制游戏文字，不自动回车。其他游戏也可选浮窗。
 - 常用语可编辑、增删、改键、逐条开关及整体关闭。默认关闭，避免占用游戏键位。支持 F 键与小键盘数字，Windows 拒绝不能独立区分的小键盘 Enter / Equal。
