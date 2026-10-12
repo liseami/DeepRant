@@ -7,7 +7,7 @@
 <div align="center">
   <img src="../src/assets/app-icon.png" width="96" height="96" alt="DeepRant app icon" />
   <h1>DeepRant</h1>
-  <p><strong>Write in your language. Speak in theirs.</strong></p>
+  <p><strong>Trash talk in-game, automatically translated across languages.</strong></p>
   <p>In-game translation · Game terminology · Your choice of model</p>
   <p>
     <a href="https://github.com/liseami/DeepRant/releases/latest"><img src="https://img.shields.io/github/v/release/liseami/DeepRant?style=flat-square&amp;color=111827" alt="Latest public release" /></a>

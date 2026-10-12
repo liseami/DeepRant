@@ -7,7 +7,7 @@
 <div align="center">
   <img src="src/assets/app-icon.png" width="96" height="96" alt="DeepRant 鲸喷应用图标" />
   <h1>DeepRant · 鲸喷</h1>
-  <p><strong>用你的语言写，用玩家的语言说。</strong></p>
+  <p><strong>游戏内嘴臭交流，自动翻译多语言。</strong></p>
   <p>游戏内翻译 · 游戏术语 · 自选模型</p>
   <p>
     <a href="https://github.com/liseami/DeepRant/releases/latest"><img src="https://img.shields.io/github/v/release/liseami/DeepRant?style=flat-square&amp;color=111827" alt="最新公开版本" /></a>
