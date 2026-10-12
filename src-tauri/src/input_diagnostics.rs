@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 shell_helper 的实时系统权限、shortcut 的真实注册状态与原生输入阶段。
+ * [INPUT]: shell_helper 实时权限、shortcut 真实注册状态、输入阶段与 inline_translation 内存恢复标志。
  * [OUTPUT]: 提供 get_input_diagnostics、open_input_permissions 和仅内存的最近输入快照。
  * [POS]: 后台热键的可观察边界；不持有聊天文本或 Key，只打开固定系统设置入口，授权由用户完成。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -21,6 +21,7 @@ pub struct InputDiagnostics {
     shortcuts_registered: bool,
     shortcut_error: Option<String>,
     last_input: Option<InputStatus>,
+    recovery_available: bool,
 }
 
 static LAST_INPUT: Mutex<Option<InputStatus>> = Mutex::new(None);
@@ -41,6 +42,7 @@ pub async fn get_input_diagnostics() -> Result<InputDiagnostics, String> {
             accessibility_granted: crate::shell_helper::accessibility_granted(),
             shortcuts_registered: crate::shortcut::shortcuts_registered(),
             shortcut_error: crate::shortcut::get_shortcut_status(),
+            recovery_available: crate::inline_translation::recovery_available(),
             last_input: LAST_INPUT
                 .lock()
                 .map_err(|_| "输入诊断状态被中断，请重启应用".to_string())?

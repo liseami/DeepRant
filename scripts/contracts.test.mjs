@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { createHash } from 'node:crypto';
 import { GAMES } from '../src/data/scenes.js';
@@ -38,6 +38,17 @@ test('webview cannot persist keys or execute platform scripts', () => {
   assert.ok(!permissions.some((p) => typeof p === 'string' && /^(shell|store|global-shortcut):/.test(p)));
   assert.ok(!read('src/components/StoreProvider.jsx').includes('@tauri-apps/plugin-store'));
   assert.ok(!read('src/pages/Settings.jsx').includes('fetch('));
+});
+
+test('desktop services are available only through native application commands', () => {
+  assert.deepEqual(json('src-tauri/capabilities/default.json').permissions, ['core:default']);
+  assert.deepEqual(json('src-tauri/capabilities/composer.json').permissions, ['core:default']);
+  const root = new URL('../src/', import.meta.url);
+  for (const path of readdirSync(root, { recursive: true }).filter(path => /\.(jsx|js)$/.test(path))) {
+    const source = readFileSync(new URL(path, root), 'utf8');
+    assert.doesNotMatch(source, /@tauri-apps\/(plugin-|api\/path)/, path);
+    assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest)\s*\(/, path);
+  }
 });
 
 test('original game recording and preview remain byte-for-byte intact', () => {

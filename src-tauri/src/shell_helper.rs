@@ -101,9 +101,19 @@ impl InputTransaction {
         clipboard.write(&marker)?;
         let revision = platform::clipboard_revision();
         if select_current_line {
-            report_status(&self.app, "copy_current_line", "正在从光标向前选到当前发言行首");
+            report_status(
+                &self.app,
+                "copy_current_line",
+                "正在从光标向前选到当前发言行首",
+            );
             #[cfg(target_os = "macos")]
-            modified_key(&self.app, &self.focus, vec![Key::Meta, Key::Shift], Key::LeftArrow, 1)?;
+            modified_key(
+                &self.app,
+                &self.focus,
+                vec![Key::Meta, Key::Shift],
+                Key::LeftArrow,
+                1,
+            )?;
             #[cfg(not(target_os = "macos"))]
             modified_key(&self.app, &self.focus, vec![Key::Shift], Key::Home, 1)?;
         }
@@ -152,7 +162,13 @@ impl InputTransaction {
     /// 仅重新选中固定 BMP 占位；原文中的 emoji、组合字符或多行不参与长度计算。
     pub(crate) fn select_previous_chars(&self, count: usize) -> Result<()> {
         wait_for_modifiers(&self.focus)?;
-        modified_key(&self.app, &self.focus, vec![Key::Shift], Key::LeftArrow, count)
+        modified_key(
+            &self.app,
+            &self.focus,
+            vec![Key::Shift],
+            Key::LeftArrow,
+            count,
+        )
     }
 }
 

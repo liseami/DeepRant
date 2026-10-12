@@ -16,10 +16,6 @@
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.3",
-    "@tauri-apps/plugin-clipboard-manager": "2.4.2",
-    "@tauri-apps/plugin-opener": "2.7.1",
-    "@tauri-apps/plugin-process": "2.4.0",
-    "@tauri-apps/plugin-updater": "2.13.3",
     "clsx": "2.1.1",
     "country-flag-icons": "1.6.20",
     "cromma-ui": "file:vendor/cromma-ui",

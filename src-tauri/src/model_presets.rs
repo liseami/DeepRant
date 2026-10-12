@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 store::ModelConfig；供应商文档仅决定可编辑的起始地址与模型 ID
- * [OUTPUT]: 提供 model_preset，覆盖当前轻量供应商、腾讯分区与旧标签迁移配置
- * [POS]: 原生预设的单一目录；store 消费它做旧配置迁移与 provider 校验，凭据不在此存放
+ * [OUTPUT]: 提供 model_preset 与 get_model_presets，覆盖轻量供应商、腾讯分区及旧标签兼容
+ * [POS]: store 与界面的唯一供应商目录；前端仅展示此处返回的预设，已有自定义配置不会在升级时被重置
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::store::ModelConfig;
@@ -73,11 +73,49 @@ pub fn model_preset(provider: &str) -> Option<ModelConfig> {
         "stepfun" => ("https://api.stepfun.com/v1", "step-2-16k", "openai", false),
         _ => return None,
     };
+    let service = crate::model_config::inspect(api_url, protocol).ok()?;
     Some(ModelConfig {
         api_url: api_url.into(),
         model_name: model_name.into(),
         protocol: protocol.into(),
         reasoning_model,
         has_api_key: false,
+        is_local: service.is_local,
+        official_deepseek: service.official_deepseek,
     })
+}
+
+#[derive(serde::Serialize)]
+pub struct ModelChoice {
+    id: &'static str,
+    name: &'static str,
+    #[serde(flatten)]
+    config: ModelConfig,
+}
+
+#[tauri::command]
+pub fn get_model_presets() -> Vec<ModelChoice> {
+    [
+        ("deepseek", "DeepSeek Flash"),
+        ("deepseek-pro", "DeepSeek Pro"),
+        ("openai", "OpenAI · GPT-6 Luna"),
+        ("anthropic", "Anthropic"),
+        ("tencent", "Tencent TokenHub · Guangzhou"),
+        ("tencent-intl", "Tencent TokenHub · Singapore"),
+        ("siliconflow", "SiliconFlow"),
+        ("302ai", "302.AI"),
+        ("ollama", "Ollama · Qwen3.5 4B"),
+        ("custom", "Custom"),
+    ]
+    .into_iter()
+    .map(|(id, name)| ModelChoice {
+        id,
+        name,
+        config: model_preset(id).unwrap_or_else(|| ModelConfig {
+            api_url: String::new(),
+            model_name: String::new(),
+            ..ModelConfig::default()
+        }),
+    })
+    .collect()
 }

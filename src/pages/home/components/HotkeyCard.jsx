@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cromma UI、快捷键设置、录制器及 Rust 实际权限 / 注册 / 输入阶段诊断
- * [OUTPUT]: 提供输入方式、快捷键与可刷新诊断，未授权时引导用户打开系统设置
+ * [OUTPUT]: 提供输入方式、快捷键和实时诊断；权限设置与无法回滚原文的显式复制入口
  * [POS]: 输入准备入口；状态来自实际运行中的原生进程，不从曾经授权或按键名称推断可用性
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -49,6 +49,7 @@ export default function HotkeyCard() {
             {diagnostics.accessibility_granted !== null && <p>{diagnostics.accessibility_granted ? (english ? 'Accessibility allowed' : '辅助功能已授权') : (english ? 'Accessibility permission required' : '辅助功能未授权，无法读写其他应用')}</p>}
             {diagnostics.accessibility_granted === false && <Button variant="secondary" size="small" onClick={openPermissions}>{english ? 'Open Accessibility settings' : '打开辅助功能设置'}</Button>}
             {diagnostics.shortcut_error && <p className="text-destructive">{diagnostics.shortcut_error}</p>}
+            {diagnostics.recovery_available && <Button variant="secondary" size="small" onClick={() => invoke('copy_input_recovery').then(refreshDiagnostics).catch(showError)}>{english ? 'Copy original text' : '复制待恢复原文'}</Button>}
             {diagnostics.last_input ? <p className="leading-relaxed">{diagnostics.last_input.message}</p> : <p className="text-muted-foreground">{english ? 'No shortcut received yet' : '尚未收到快捷键'}</p>}
           </div>}
           {diagnosticError && <p role="alert" className="mt-2 text-xs text-destructive">{diagnosticError}</p>}

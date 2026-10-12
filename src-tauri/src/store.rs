@@ -5,7 +5,6 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
-use reqwest::Url;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -18,90 +17,8 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 // 模型配置不携带凭据，端点同时决定请求地址与系统凭据账户
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct ModelConfig {
-    pub api_url: String,
-    pub model_name: String,
-    pub protocol: String,
-    pub reasoning_model: bool,
-    #[serde(skip_deserializing)]
-    pub has_api_key: bool,
-}
-
-impl Default for ModelConfig {
-    fn default() -> Self {
-        Self {
-            api_url: "https://api.deepseek.com/chat/completions".into(),
-            model_name: "deepseek-flash".into(),
-            protocol: "openai".into(),
-            reasoning_model: false,
-            has_api_key: false,
-        }
-    }
-}
-
+pub use crate::model_config::{is_loopback, normalize_api_url, ModelConfig};
 pub use crate::model_presets::model_preset;
-
-pub fn normalize_api_url(raw: &str, protocol: &str) -> Result<String> {
-    if !matches!(protocol, "openai" | "anthropic") {
-        bail!("API 协议仅支持 openai 或 anthropic");
-    }
-    if raw.len() > 2048 {
-        bail!("API 地址过长，请填写服务端点");
-    }
-    let mut url =
-        Url::parse(raw.trim()).map_err(|_| anyhow!("API 地址无效，请填写完整 http(s) 地址"))?;
-    if !matches!(url.scheme(), "https" | "http") || url.host_str().is_none() {
-        bail!("API 地址必须使用 http 或 https");
-    }
-    if !url.username().is_empty()
-        || url.password().is_some()
-        || url.query().is_some()
-        || url.fragment().is_some()
-    {
-        bail!("API 地址不能包含用户名、密码、查询参数或片段；Key 请单独保存");
-    }
-    if url.scheme() == "http" && !is_loopback(&url) {
-        bail!("远程 API 请使用 HTTPS；本地服务可使用 localhost 或回环地址");
-    }
-    let path = url.path().trim_end_matches('/');
-    if (protocol == "openai" && path.ends_with("/messages"))
-        || (protocol == "anthropic" && path.ends_with("/chat/completions"))
-    {
-        bail!("API 端点与协议不匹配，请选择对应的 OpenAI 或 Anthropic 协议");
-    }
-    let endpoint = if protocol == "anthropic" {
-        "/messages"
-    } else {
-        "/chat/completions"
-    };
-    let path = if path.ends_with(endpoint) {
-        path.to_string()
-    } else if path.is_empty() {
-        let prefix = if protocol == "openai" && url.host_str() == Some("api.deepseek.com") {
-            ""
-        } else {
-            "/v1"
-        };
-        format!("{prefix}{endpoint}")
-    } else if protocol == "anthropic" && path.ends_with("/anthropic") {
-        format!("{path}/v1{endpoint}")
-    } else {
-        format!("{path}{endpoint}")
-    };
-    url.set_path(&path);
-    Ok(url.to_string())
-}
-
-pub fn is_loopback(url: &Url) -> bool {
-    let host = url.host_str().unwrap_or_default().trim_matches(['[', ']']);
-    host.eq_ignore_ascii_case("localhost")
-        || host
-            .parse::<std::net::IpAddr>()
-            .map(|ip| ip.is_loopback())
-            .unwrap_or(false)
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -305,6 +222,8 @@ fn serialized_settings(settings: &AppSettings) -> Value {
     let mut value = json!(settings);
     if let Some(model) = value.get_mut("custom_model").and_then(Value::as_object_mut) {
         model.remove("has_api_key");
+        model.remove("is_local");
+        model.remove("official_deepseek");
     }
     value
 }
@@ -352,17 +271,27 @@ fn finish_legacy_cleanup(directory: &Path) -> Result<()> {
     } else {
         &mut root
     };
-    if let Some(model) = settings.get_mut("custom_model").and_then(Value::as_object_mut) {
+    if let Some(model) = settings
+        .get_mut("custom_model")
+        .and_then(Value::as_object_mut)
+    {
         if let Some(key) = model.remove("auth") {
             if !key.is_string() && !key.is_null() {
                 bail!("旧 API Key 格式无效，SQLite 配置已保留；请修复 store.json 后重试清理");
             }
             if let Some(secret) = key.as_str().map(str::trim).filter(|key| !key.is_empty()) {
                 let defaults = ModelConfig::default();
-                let protocol = model.get("protocol").and_then(Value::as_str)
+                let protocol = model
+                    .get("protocol")
+                    .and_then(Value::as_str)
                     .unwrap_or(&defaults.protocol);
-                let endpoint = normalize_api_url(model.get("api_url").and_then(Value::as_str)
-                    .unwrap_or(&defaults.api_url), protocol)?;
+                let endpoint = normalize_api_url(
+                    model
+                        .get("api_url")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&defaults.api_url),
+                    protocol,
+                )?;
                 if crate::credentials::read(&endpoint, protocol)?.as_deref() != Some(secret) {
                     bail!("旧 API Key 尚未通过系统凭据库验证，SQLite 配置与旧文件均已保留");
                 }
@@ -373,13 +302,17 @@ fn finish_legacy_cleanup(directory: &Path) -> Result<()> {
 }
 
 fn refresh_key_state(settings: &mut AppSettings) -> Result<()> {
+    let service = crate::model_config::inspect(
+        &settings.custom_model.api_url,
+        &settings.custom_model.protocol,
+    )?;
+    settings.custom_model.is_local = service.is_local;
+    settings.custom_model.official_deepseek = service.official_deepseek;
     let key = crate::credentials::read(
         &settings.custom_model.api_url,
         &settings.custom_model.protocol,
     );
-    let local = Url::parse(&settings.custom_model.api_url)
-        .map(|url| is_loopback(&url))
-        .unwrap_or(false);
+    let local = service.is_local;
     settings.custom_model.has_api_key = match key {
         Ok(key) => key.is_some_and(|key| !key.trim().is_empty()),
         // 无 Key 的本地 Ollama 不依赖用户是否启用 Secret Service。
@@ -414,12 +347,6 @@ fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
     // 先记住旧 auth 对应端点，再选择当前供应商；迁移不能把凭据发配到另一家。
     let legacy_endpoint = settings.custom_model.api_url.clone();
     let legacy_protocol = settings.custom_model.protocol.clone();
-    if legacy_key.is_some() && settings.model_type != "custom" {
-        if let Some(mut preset) = model_preset(&settings.model_type) {
-            preset.api_url = normalize_api_url(&preset.api_url, &preset.protocol)?;
-            settings.custom_model = preset;
-        }
-    }
     if settings
         .custom_model
         .api_url

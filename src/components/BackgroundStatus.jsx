@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Rust 实际输入 / 权限状态、固定辅助功能设置命令和 Cromma Button
- * [OUTPUT]: 提供输入进度与可操作错误提示，权限失败可直接打开系统对应设置
- * [POS]: 所有主页面共用事件桥；反馈不写入聊天，系统授权由用户显式完成
+ * [INPUT]: 依赖 Rust 实际输入 / 权限状态、固定辅助功能设置与内存原文恢复命令、Cromma Button
+ * [OUTPUT]: 提供输入进度、系统设置入口与无法安全回滚时的原文复制按钮
+ * [POS]: 主页面事件桥；原位进度由事务占位呈现，焦点变化后恢复由用户显式复制，原文不进入事件载荷
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -22,12 +22,15 @@ export default function BackgroundStatus() {
     listen('deeprant://input-status', ({ payload }) => {
       if (closed) return;
       const id = 'input-status';
-      if (payload.state === 'error') toast.error(payload.accessibility_required ? <div className="space-y-3">
+      if (payload.state === 'error') toast.error(payload.accessibility_required || payload.recovery_available ? <div className="space-y-3">
         <p>{payload.message}</p>
-        <Button variant="ink" size="small" onClick={() => invoke('open_input_permissions').catch(showError)}>
+        {payload.accessibility_required && <Button variant="ink" size="small" onClick={() => invoke('open_input_permissions').catch(showError)}>
           {locale === 'en' ? 'Open Accessibility settings' : '打开辅助功能设置'}
-        </Button>
-      </div> : payload.message, { id, duration: payload.accessibility_required ? 15000 : 7000 });
+        </Button>}
+        {payload.recovery_available && <Button variant="secondary" size="small" onClick={() => invoke('copy_input_recovery').then(() => toast.success(uiText(locale, 'copied'))).catch(showError)}>
+          {locale === 'en' ? 'Copy original text' : '复制原文'}
+        </Button>}
+      </div> : payload.message, { id, duration: payload.recovery_available ? Infinity : payload.accessibility_required ? 15000 : 7000 });
       else if (payload.state === 'done') toast.success(uiText(locale, 'statusDone'), { id, duration: 2000 });
       else {
         const key = { copying: 'statusCopying', translating: 'statusTranslating', pasting: 'statusPasting' }[payload.state];

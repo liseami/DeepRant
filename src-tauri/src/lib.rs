@@ -8,11 +8,16 @@ use tauri::Manager;
 pub mod ai_translator;
 mod composer_target;
 pub mod credentials;
+mod desktop_services;
 pub mod game_composer;
+mod inline_translation;
 pub mod input_diagnostics;
+mod model_config;
+mod model_editor;
 pub mod model_presets;
 mod native_keyboard;
 pub mod scenes;
+mod settings_db;
 pub mod shell_helper;
 pub mod shortcut;
 pub mod store;
@@ -74,10 +79,23 @@ async fn read_api_key(
 }
 
 #[tauri::command]
-async fn test_model_connection(app_handle: tauri::AppHandle) -> Result<String, String> {
-    ai_translator::test_model_connection(&app_handle)
-        .await
-        .map_err(|e| e.to_string())
+async fn copy_input_recovery(window: tauri::WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("只有主窗口可以复制待恢复的原文".into());
+    }
+    let app = window.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        inline_translation::copy_recovery(&app).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|_| "原文恢复任务被中断".to_string())?
+}
+
+#[tauri::command]
+async fn test_model_connection(
+    app_handle: tauri::AppHandle,
+) -> Result<model_editor::ConnectionReport, String> {
+    model_editor::test(&app_handle).await
 }
 
 #[tauri::command]
@@ -280,6 +298,13 @@ pub fn run() {
             update_settings,
             clear_api_key,
             read_api_key,
+            model_config::inspect_model_endpoint,
+            model_presets::get_model_presets,
+            model_editor::copy_connection_diagnostic,
+            desktop_services::copy_plain_text,
+            desktop_services::open_external_link,
+            desktop_services::get_demo_video_url,
+            copy_input_recovery,
             test_model_connection,
             translate_text,
             get_shortcut_status,

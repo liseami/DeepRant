@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cromma UI / Pika、公开模型设置、共享 Key 读取字段、供应商预设、Rust 测连与系统剪贴板
+ * [INPUT]: 依赖 Cromma UI / Pika、公开模型设置、共享 Key 读取字段、供应商预设、Rust 服务分类/预设/测连/诊断复制
  * [OUTPUT]: 提供当前模型配置、Key 查看显隐与编辑、通用推理预算及可复制的安全连接诊断
- * [POS]: 模型配置入口；凭据只在局部字段存在，切换服务立即清理；诊断只记录服务、协议、模型、耗时和脱敏结果
+ * [POS]: 模型配置入口；凭据只在局部字段存在，切换服务立即清理；服务分类与诊断由 Rust 生成，前端只显示原生结果和编辑草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,14 +9,12 @@ import { useState, useEffect } from 'react';
 import { Panel, PanelHeader, Button, Checkbox, Input, Select, SidebarButton, motion, MOTION } from 'cromma-ui';
 import { Server, CrownWinnerKing, CheckTickCircle, Refresh, CopyDefault } from 'cromma-ui/pika';
 import { invoke } from '@tauri-apps/api/core';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { useStore } from '../components/StoreProvider';
 import ApiKeyField, { useApiKey } from '../components/ApiKeyField';
-import { MODELS } from '../data/models';
 import { showSuccess, showError } from '../utils/toast';
 
 export default function Settings() {
-    const { settings, updateSettings, runCommand, t, locale } = useStore();
+    const { settings, modelPresets, updateSettings, runCommand, t, locale } = useStore();
     const [draft, setDraft] = useState({ ...settings.custom_model, model_type: settings.model_type });
     const [busy, setBusy] = useState('');
     const [diagnostic, setDiagnostic] = useState(null);
@@ -27,46 +25,48 @@ export default function Settings() {
         setDraft({ api_url: model.api_url, model_name: model.model_name, protocol: model.protocol || 'openai', reasoning_model: Boolean(model.reasoning_model), model_type: settings.model_type });
     }, [model.api_url, model.model_name, model.protocol, model.reasoning_model, settings.model_type]);
 
-    let isLocal = false;
-    try {
-        const host = new URL(draft.api_url).hostname;
-        isLocal = host === 'localhost' || host === '[::1]' || (/^127(?:\.\d{1,3}){3}$/.test(host) && host.split('.').every(part => Number(part) <= 255));
-    } catch { /* -------- 未完成的地址草稿仍显示 Key 输入 -------- */ }
+    const [endpointInfo, setEndpointInfo] = useState(null);
+    useEffect(() => {
+        let active = true;
+        const apiUrl = draft.api_url;
+        const protocol = draft.protocol || 'openai';
+        invoke('inspect_model_endpoint', { apiUrl, protocol }).then(info => {
+            if (active) setEndpointInfo({ apiUrl, protocol, ...info });
+        }).catch(() => { if (active) setEndpointInfo(null); });
+        return () => { active = false; };
+    }, [draft.api_url, draft.protocol]);
+    const isLocal = endpointInfo?.apiUrl === draft.api_url && endpointInfo?.protocol === draft.protocol && endpointInfo.is_local;
     const hasKey = model.has_api_key && draft.api_url === model.api_url && draft.protocol === model.protocol;
     const credential = useApiKey(draft.api_url, draft.protocol, hasKey && !isLocal);
     const change = (field, value) => setDraft(current => ({ ...current, [field]: value }));
 
     function selectModel(id) {
         if (id === 'custom') change('model_type', id);
-        else setDraft({ ...MODELS[id], model_type: id });
+        else { const preset = modelPresets.find(item => item.id === id); if (preset) setDraft({ ...preset, model_type: id }); }
     }
 
     async function save(test = false) {
-        if (!draft.api_url.trim() || !draft.model_name.trim()) { showError(t('requiredModel')); return; }
         setBusy(test ? 'testing' : 'saving');
-        const started = performance.now();
-        let tested = { model: draft.model_name.trim(), protocol: draft.protocol, server: '' };
-        const record = (ok, message) => setDiagnostic({ ...tested, ok, message: String(message), seconds: ((performance.now() - started) / 1000).toFixed(1) });
         try {
-            const saved = await updateSettings({ model_type: draft.model_type, custom_model: {
+            await updateSettings({ model_type: draft.model_type, custom_model: {
                 api_url: draft.api_url.trim(), model_name: draft.model_name.trim(), protocol: draft.protocol, reasoning_model: Boolean(draft.reasoning_model),
                 ...(credential.changed && !isLocal ? { auth: credential.value.trim() } : {}),
             } });
             credential.reload();
             if (test) {
-                tested = { model: saved.custom_model.model_name, protocol: saved.custom_model.protocol, server: new URL(saved.custom_model.api_url).host };
-                const message = await invoke('test_model_connection');
-                record(true, chinese ? message : t('connectionOk'));
-                showSuccess(t('connectionOk'));
+                const report = await invoke('test_model_connection');
+                setDiagnostic(report);
+                if (report.ok) showSuccess(t('connectionOk'));
+                else showError(report.message);
             }
             else showSuccess(t('saved'));
-        } catch (failure) { if (test) record(false, failure); showError(failure); }
+        } catch (failure) { showError(failure); }
         finally { setBusy(''); }
     }
 
     async function copyDiagnostic() {
         try {
-            await writeText(`DeepRant connection ${diagnostic.ok ? 'OK' : 'failed'}\nServer: ${diagnostic.server || '(not connected)'}\nProtocol: ${diagnostic.protocol}\nModel: ${diagnostic.model}\nElapsed: ${diagnostic.seconds}s\n${diagnostic.message}`);
+            await invoke('copy_connection_diagnostic');
             showSuccess(t('copied'));
         } catch (failure) { showError(failure); }
     }
@@ -88,7 +88,7 @@ export default function Settings() {
                 <Panel>
                     <PanelHeader title={<span className="flex items-center gap-2"><CrownWinnerKing size={18} aria-hidden="true" />{chinese ? '模型选择' : 'Model selection'}</span>} />
                     <div className="space-y-1.5 p-3">
-                        {Object.entries(MODELS).map(([id, preset]) => (
+                        {modelPresets.map(({ id, ...preset }) => (
                             <SidebarButton key={id} disabled={Boolean(busy)} active={draft.model_type === id} aria-pressed={draft.model_type === id}
                                 onClick={() => selectModel(id)} className="w-full gap-3 p-3">
                                 <Server size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" />

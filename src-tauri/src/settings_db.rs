@@ -54,8 +54,9 @@ fn read_document(connection: &Connection) -> Result<Option<(Value, bool)>> {
         .map_err(|_| anyhow!("无法读取设置数据库，原数据已保留；请备份 settings.sqlite3 后修复"))?;
     stored
         .map(|(document, pending)| {
-            let root: Value = serde_json::from_str(&document)
-                .map_err(|_| anyhow!("设置数据库文档无效，原数据已保留；请备份 settings.sqlite3 后修复"))?;
+            let root: Value = serde_json::from_str(&document).map_err(|_| {
+                anyhow!("设置数据库文档无效，原数据已保留；请备份 settings.sqlite3 后修复")
+            })?;
             validate_document(&root)?;
             Ok((root, pending))
         })
@@ -66,6 +67,10 @@ fn validate_document(root: &Value) -> Result<()> {
     if !root.is_object() || !root.get("settings").is_some_and(Value::is_object) {
         bail!("设置文档必须包含 settings 对象，原数据已保留");
     }
+    reject_plaintext_key(root)
+}
+
+fn reject_plaintext_key(root: &Value) -> Result<()> {
     if root.pointer("/settings/custom_model/auth").is_some()
         || root.pointer("/custom_model/auth").is_some()
     {
@@ -93,8 +98,8 @@ pub fn read(directory: &Path) -> Result<Snapshot> {
 
 fn write_document(connection: &mut Connection, root: &Value, pending: bool) -> Result<()> {
     validate_document(root)?;
-    let document = serde_json::to_string(root)
-        .map_err(|_| anyhow!("无法编码设置，原数据已保留"))?;
+    let document =
+        serde_json::to_string(root).map_err(|_| anyhow!("无法编码设置，原数据已保留"))?;
     let transaction = connection
         .transaction()
         .map_err(|_| anyhow!("无法开始设置事务，原数据已保留"))?;
@@ -128,10 +133,7 @@ pub fn read_legacy(directory: &Path) -> Result<Option<Value>> {
     Ok(Some(root))
 }
 
-pub fn finish_legacy_cleanup(
-    directory: &Path,
-    legacy: Option<(&Value, &Value)>,
-) -> Result<()> {
+pub fn finish_legacy_cleanup(directory: &Path, legacy: Option<(&Value, &Value)>) -> Result<()> {
     let mut connection = connect(directory)?;
     let Some((_, pending)) = read_document(&connection)? else {
         bail!("设置尚未提交到 SQLite，旧文件明文已保留，请重试迁移");
@@ -141,7 +143,7 @@ pub fn finish_legacy_cleanup(
     }
     // 数据库已经提交，清理失败仍保留待办标记；重启后仅重试清理，绝不重新导入。
     if let Some((original, sanitized)) = legacy {
-        validate_document(sanitized)?;
+        reject_plaintext_key(sanitized)?;
         if read_legacy(directory)?.as_ref() != Some(original) {
             bail!("旧设置在迁移期间发生变化，文件已保留；请重试以完成明文清理");
         }
@@ -185,7 +187,11 @@ mod tests {
         let path = directory.path();
         let legacy = json!({"settings": {"custom_model": {"auth": "migration-test"}},
             "other": {"retained": true}});
-        fs::write(path.join(LEGACY_FILENAME), serde_json::to_vec(&legacy).unwrap()).unwrap();
+        fs::write(
+            path.join(LEGACY_FILENAME),
+            serde_json::to_vec(&legacy).unwrap(),
+        )
+        .unwrap();
         let snapshot = read(path).unwrap();
         assert!(snapshot.from_legacy && snapshot.legacy_cleanup_pending);
         assert_eq!(snapshot.root, legacy);
@@ -213,12 +219,28 @@ mod tests {
         let original = json!({"settings": {}, "other": true});
         write(path, &original, true).unwrap();
         let mut connection = connect(path).unwrap();
-        connection.execute_batch("CREATE TRIGGER reject_update BEFORE UPDATE ON settings_document
-            BEGIN SELECT RAISE(ABORT, 'test rollback'); END;").unwrap();
-        assert!(write_document(&mut connection, &json!({"settings": {"daily_mode": true}}), false).is_err());
-        assert_eq!(read_document(&connection).unwrap(), Some((original.clone(), true)));
+        connection
+            .execute_batch(
+                "CREATE TRIGGER reject_update BEFORE UPDATE ON settings_document
+            BEGIN SELECT RAISE(ABORT, 'test rollback'); END;",
+            )
+            .unwrap();
+        assert!(write_document(
+            &mut connection,
+            &json!({"settings": {"daily_mode": true}}),
+            false
+        )
+        .is_err());
+        assert_eq!(
+            read_document(&connection).unwrap(),
+            Some((original.clone(), true))
+        );
         let changed = json!({"settings": {}, "other": "newer edit"});
-        fs::write(path.join(LEGACY_FILENAME), serde_json::to_vec(&changed).unwrap()).unwrap();
+        fs::write(
+            path.join(LEGACY_FILENAME),
+            serde_json::to_vec(&changed).unwrap(),
+        )
+        .unwrap();
         assert!(finish_legacy_cleanup(path, Some((&original, &original))).is_err());
         assert_eq!(read_legacy(path).unwrap(), Some(changed));
         assert_eq!(read(path).unwrap().root, original);
@@ -229,12 +251,37 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path();
         write(path, &json!({"settings": {"daily_mode": true}}), false).unwrap();
-        connect(path).unwrap().execute(
-            "UPDATE settings_document SET document = ?1 WHERE id = 1",
-            ["{broken-document"],
-        ).unwrap();
+        connect(path)
+            .unwrap()
+            .execute(
+                "UPDATE settings_document SET document = ?1 WHERE id = 1",
+                ["{broken-document"],
+            )
+            .unwrap();
         fs::write(path.join(LEGACY_FILENAME), b"{\"settings\":{}}").unwrap();
         assert!(read(path).is_err());
-        assert_eq!(fs::read(path.join(LEGACY_FILENAME)).unwrap(), b"{\"settings\":{}}");
+        assert_eq!(
+            fs::read(path.join(LEGACY_FILENAME)).unwrap(),
+            b"{\"settings\":{}}"
+        );
+    }
+
+    #[test]
+    fn direct_root_legacy_file_can_be_scrubbed_after_wrapped_database_commit() {
+        let directory = tempfile::tempdir().unwrap();
+        let legacy =
+            json!({"daily_mode": true, "custom_model": {"auth": "migration-test"}, "metadata": 42});
+        fs::write(
+            directory.path().join(LEGACY_FILENAME),
+            serde_json::to_vec(&legacy).unwrap(),
+        )
+        .unwrap();
+        let sanitized = json!({"daily_mode": true, "custom_model": {}, "metadata": 42});
+        let document =
+            json!({"settings": {"daily_mode": true, "custom_model": {}}, "metadata": 42});
+        write(directory.path(), &document, true).unwrap();
+        finish_legacy_cleanup(directory.path(), Some((&legacy, &sanitized))).unwrap();
+        assert_eq!(read_legacy(directory.path()).unwrap(), Some(sanitized));
+        assert_eq!(read(directory.path()).unwrap().root, document);
     }
 }

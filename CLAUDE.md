@@ -14,8 +14,8 @@ app-icon.png - 保留原尺寸与像素的品牌源图；本机 generate-icons.p
 package.json / package-lock.json - 前端依赖与构建命令
 src-tauri/Cargo.toml / Cargo.lock - Rust 依赖与锁定版本
 rust-toolchain.toml - 固定 Rust 编译器和质量检查工具
-README.md / docs/README.en.md - 中文默认与英文独立产品入口，下载、游戏工作流、配置、架构和开发说明互相对应
+README.md / docs/README.en.md - 中文默认与英文独立产品入口，简明游戏使用与开发导航互相对应
 src-tauri/tauri.conf.json - 窗口、安全策略、安装器和更新签名
 </config>
-边界: Rust 是设置、凭据与模型请求的唯一权威；WebView 仅通过命令提交更改。macOS 键盘创建、布局查询与短注入只在主线程，网络、等待与剪贴板留在后台；原位核验原文与焦点，浮窗确认回填、不自动发送。录屏只通过单文件 asset scope 按需读取，视觉由用户验收；release 全部平台验证后才发布。
+边界: Rust 是 SQLite 设置、系统凭据与模型请求的唯一权威；主窗口模型编辑可查看自己的 Key，秘密不进入共享设置或数据库；模型预设/URL 分类、剪贴板、外链、资源路径及更新均由 Rust 执行，前端只渲染与编辑草稿。macOS 键盘创建、布局查询与短注入只在主线程，网络、等待与剪贴板留在后台；原位核验占位与焦点再替换/恢复，浮窗确认回填、不自动发送。录屏只通过单文件 asset scope 按需读取，视觉由用户验收；release 全部平台验证后才发布。
 法则: 极简·稳定·导航·版本精确

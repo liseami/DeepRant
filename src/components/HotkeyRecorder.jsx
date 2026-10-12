@@ -60,9 +60,6 @@ export default function HotkeyRecorder({ hotkey, onSave, disabled = false, label
     if (event.repeat || /^(Control|Alt|Shift|Meta)/.test(event.code)) return;
     const modifiers = [['Control', event.ctrlKey], ['Alt', event.altKey], ['Shift', event.shiftKey], ['Meta', event.metaKey]]
       .filter(([, held]) => held).map(([name]) => name);
-    if (!modifiers.length && !/^(Numpad|F([1-9]|1[0-9]|2[0-4])$)/.test(event.code)) {
-      showError(t('hotkeyInvalid')); candidate.current = null; return;
-    }
     candidate.current = { code: event.code, keys: [...modifiers, event.code] };
   }
 

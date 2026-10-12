@@ -19,19 +19,29 @@ pub(crate) fn recovery_available() -> bool {
 /// 用户明确点击“复制原文”才写剪贴板；写入失败保留草稿，原文不进入日志、事件或持久化。
 pub(crate) fn copy_recovery(app: &AppHandle) -> Result<()> {
     let mut recovery = RECOVERY.lock().map_err(|_| anyhow!("原文恢复暂不可用"))?;
-    let text = recovery.as_ref().ok_or_else(|| anyhow!("没有需要恢复的原文"))?;
-    app.clipboard().write_text(text).context("系统拒绝复制原文，恢复草稿仍然保留")?;
+    let text = recovery
+        .as_ref()
+        .ok_or_else(|| anyhow!("没有需要恢复的原文"))?;
+    app.clipboard()
+        .write_text(text)
+        .context("系统拒绝复制原文，恢复草稿仍然保留")?;
     *recovery = None;
     Ok(())
 }
 
 fn remember_original(original: &str) -> Result<()> {
-    *RECOVERY.lock().map_err(|_| anyhow!("无法保存原文恢复草稿"))? = Some(original.to_string());
+    *RECOVERY
+        .lock()
+        .map_err(|_| anyhow!("无法保存原文恢复草稿"))? = Some(original.to_string());
     Ok(())
 }
 
 fn progress_text(language: &str) -> &'static str {
-    if language == "en" { "Translating..." } else { "翻译中..." }
+    if language == "en" {
+        "Translating..."
+    } else {
+        "翻译中..."
+    }
 }
 
 fn require_progress_selection(selected: &str, progress: &str) -> Result<()> {
@@ -49,7 +59,11 @@ fn verify_progress(transaction: &InputTransaction, progress: &str) -> Result<()>
 fn restore_original(transaction: &InputTransaction, original: &str, progress: &str) -> Result<()> {
     verify_progress(transaction, progress)?;
     transaction.paste(original)?;
-    report_status(&transaction.app, "restored", "翻译未完成，已发送原文恢复粘贴");
+    report_status(
+        &transaction.app,
+        "restored",
+        "翻译未完成，已发送原文恢复粘贴",
+    );
     Ok(())
 }
 
@@ -72,7 +86,11 @@ fn fail_with_recovery(
     }
 }
 
-pub(crate) async fn replace(app: &AppHandle, select_current_line: bool, language: &str) -> Result<()> {
+pub(crate) async fn replace(
+    app: &AppHandle,
+    select_current_line: bool,
+    language: &str,
+) -> Result<()> {
     let busy = BusyGuard::acquire()?;
     let app = app.clone();
     let progress = progress_text(language);
@@ -93,19 +111,35 @@ pub(crate) async fn replace(app: &AppHandle, select_current_line: bool, language
     })
     .await
     .context("输入任务被中断")??;
-    report_status(&transaction.app, "translating", "输入框已显示翻译中，正在请求模型");
+    report_status(
+        &transaction.app,
+        "translating",
+        "输入框已显示翻译中，正在请求模型",
+    );
     let outcome = crate::ai_translator::translate_with_gpt(&transaction.app, &original).await;
     tauri::async_runtime::spawn_blocking(move || {
         let translated = match outcome {
             Ok(translated) if !translated.trim().is_empty() => translated,
-            Ok(_) => return Err(fail_with_recovery(&transaction, &original, progress, anyhow!("模型返回空译文"))),
+            Ok(_) => {
+                return Err(fail_with_recovery(
+                    &transaction,
+                    &original,
+                    progress,
+                    anyhow!("模型返回空译文"),
+                ))
+            }
             Err(error) => return Err(fail_with_recovery(&transaction, &original, progress, error)),
         };
-        let commit = verify_progress(&transaction, progress).and_then(|_| transaction.paste(&translated));
+        let commit =
+            verify_progress(&transaction, progress).and_then(|_| transaction.paste(&translated));
         if let Err(error) = commit {
             return Err(fail_with_recovery(&transaction, &original, progress, error));
         }
-        report_status(&transaction.app, "done", "译文替换粘贴已发送，请确认目标输入框");
+        report_status(
+            &transaction.app,
+            "done",
+            "译文替换粘贴已发送，请确认目标输入框",
+        );
         Ok(())
     })
     .await

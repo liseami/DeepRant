@@ -10,7 +10,7 @@
 
 ## 架构落点
 
-Rust 统一持有设置、系统凭据和模型请求。普通输入框使用原位事务，先确认复制成功，翻译后再次核对原文与焦点。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
+Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框使用原位事务：游戏向前选中当前发言，日常只处理原选区；确认复制后显示翻译占位，完成或失败时核对占位与焦点再替换/恢复，不覆盖用户新编辑。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
 
 所有输入方式共用语言、表达风格、通用提示词和术语表。API 连接测试与翻译共用原生请求，凭据存入系统凭据库；诊断只含服务名、协议、模型、耗时与脱敏错误。普通模型预算 2048 token / 60 秒，通用推理兼容预算 16384 token / 120 秒，仅解析最终文本；轻量预设为官方 OpenAI `gpt-6-luna` 与本地 Qwen3.5 4B，不再展示专用 R1 入口。官方 OpenAI 默认禁用思考、兼容开启使用低推理强度，非官方兼容端点保留单 user 回合以支持旧本地模型；Anthropic 请求不受这些扩展字段影响。
 
@@ -18,7 +18,7 @@ Rust 统一持有设置、系统凭据和模型请求。普通输入框使用原
 
 | Issue | 独立实现与产品取舍 | 验收边界 |
 | --- | --- | --- |
-| [#5](https://github.com/liseami/DeepRant/issues/5) | 原生按键代替脚本，释放修饰键后调度；状态不再写进聊天，重复触发拒绝；可选浮窗输入。 | Windows / Dota 现场待验收。 |
+| [#5](https://github.com/liseami/DeepRant/issues/5) | 原生按键代替脚本，释放修饰键后调度；翻译占位有核验与失败恢复，重复触发拒绝；可选浮窗输入。 | Windows / Dota 现场待验收。 |
 | [#10](https://github.com/liseami/DeepRant/issues/10) | 五个主页面与浮窗可切换中文 / English；README 中文默认、独立英文入口。 | 原生系统诊断当前仍以中文呈现。 |
 | [#17](https://github.com/liseami/DeepRant/issues/17) | 彩虹六号与全境封锁2的独立术语语境。 | 不等于实测反作弊兼容。 |
 | [#20](https://github.com/liseami/DeepRant/issues/20) | 漫威争锋语境。 | 游戏现场待验收。 |
@@ -29,7 +29,7 @@ Rust 统一持有设置、系统凭据和模型请求。普通输入框使用原
 | [#29](https://github.com/liseami/DeepRant/issues/29) | 王者荣耀黑话已有桌面语境；沿原作者回复保留桌面产品边界，本轮不发布手机客户端。 | 手机客户端需求未采纳。 |
 | [#32](https://github.com/liseami/DeepRant/issues/32) | 英式英语明确采用英国拼写和措辞；禁止依据语言虚构玩家地区。 | 模型表达质量待验收。 |
 | [#33](https://github.com/liseami/DeepRant/issues/33) | 日常模式保留犀利 / 专业 / 自然风格，通用提示词可配置社区回复偏好。 | 不自动抓取社交账号或评论。 |
-| [#34](https://github.com/liseami/DeepRant/issues/34) | 删除现行共享 Key，个人 Key 进系统凭据库，不回传 WebView；依赖日志限警告，聊天不进调试日志。 | 历史泄露凭据仍需供应商后台撤销。 |
+| [#34](https://github.com/liseami/DeepRant/issues/34) | 删除现行共享 Key，个人 Key 进系统凭据库；仅主窗口模型编辑允许查看自己的 Key，不进入共享设置/日志；依赖日志限警告。 | 历史泄露凭据仍需供应商后台撤销。 |
 | [#35](https://github.com/liseami/DeepRant/issues/35) | LoL 默认热键输入浮窗，不再要求聊天框能复制，确认后回填 Unicode。 | 浮窗写新消息；不声称读取游戏已有聊天内容，游戏现场待验收。 |
 | [#36](https://github.com/liseami/DeepRant/issues/36) | 去除脚本注入、锁定依赖、安装器与更新签名验收链。 | 未配置 Windows Authenticode 证书，杀软信誉不能由代码保证。 |
 | [#37](https://github.com/liseami/DeepRant/issues/37) | 燕云十六声语境。 | 游戏现场待验收。 |
@@ -69,7 +69,7 @@ Rust 统一持有设置、系统凭据和模型请求。普通输入框使用原
 
 主 Agent 执行前端构建、契约检查、原生单测、clippy 与本机包技术核验。用户负责全部视觉与游戏现场验收。子 Agent 不运行 build / test / typecheck，整合后清理 worktree 与中间产物。
 
-本机包沿 CCBaga 的 debug / custom-protocol / 临时签名 / 事务重装流程，每次重新生成。公开发布由本次用户授权的 release 分支流程触发，沿 CCBaga 的最终字节签名、DMG 布局和安装验收门禁。Windows 原生与安装检查、真实供应商和游戏验收尚未完成，不能提前把这些条目按已验证 bug 修复关闭。
+本机包沿 CCBaga 的 debug / custom-protocol / 事务重装流程，每次重新生成；优先采用同组织稳定 Developer ID 签名，避免每次编译改变辅助功能身份，无证书才回退临时签名。公开发布由本次用户授权的 release 分支流程触发，沿 CCBaga 的最终字节签名、DMG 布局和安装验收门禁。上一整合提交的 macOS / Windows 原生检查已通过 GitHub Checks；本轮输入与 SQLite 改动、正式安装器和游戏仍需各自验收，不能把单测等同于现场验证。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 

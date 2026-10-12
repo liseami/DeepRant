@@ -1,17 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window event, clipboard, links and signed updater permissions; model and settings stay in Rust",
+  "description": "Main window core events only; desktop services and updater are controlled by Rust commands",
   "windows": [
     "main"
   ],
   "permissions": [
-    "core:default",
-    "clipboard-manager:allow-read-text",
-    "clipboard-manager:allow-write-text",
-    "opener:allow-open-url",
-    "opener:allow-default-urls",
-    "updater:default",
-    "process:allow-restart"
+    "core:default"
   ]
 }

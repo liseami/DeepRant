@@ -1,3 +1,5 @@
+#[cfg(feature = "custom-protocol")]
+use tauri::{path::BaseDirectory, Manager};
 /**
  * [INPUT]: 依赖 Tauri 窗口身份、资源目录和原生剪贴板 / 浏览器插件。
  * [OUTPUT]: 提供 copy_plain_text、open_external_link 和 get_demo_video_url 三个桌面命令。
@@ -5,8 +7,6 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use tauri::{AppHandle, WebviewWindow};
-#[cfg(feature = "custom-protocol")]
-use tauri::{path::BaseDirectory, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -21,11 +21,7 @@ fn require_main(window: &WebviewWindow) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn copy_plain_text(
-    app: AppHandle,
-    window: WebviewWindow,
-    text: String,
-) -> Result<(), String> {
+pub fn copy_plain_text(app: AppHandle, window: WebviewWindow, text: String) -> Result<(), String> {
     if !matches!(window.label(), "main" | "composer") {
         return Err("此窗口不能复制文本".to_string());
     }
@@ -51,11 +47,7 @@ fn external_link(id: &str) -> Result<&'static str, String> {
 }
 
 #[tauri::command]
-pub fn open_external_link(
-    app: AppHandle,
-    window: WebviewWindow,
-    id: String,
-) -> Result<(), String> {
+pub fn open_external_link(app: AppHandle, window: WebviewWindow, id: String) -> Result<(), String> {
     require_main(&window)?;
     app.opener()
         .open_url(external_link(&id)?, None::<&str>)

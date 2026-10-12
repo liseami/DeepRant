@@ -18,12 +18,7 @@ export default function ApiKeyBanner() {
   const model = settings?.custom_model;
   const credential = useApiKey(model?.api_url, model?.protocol, false);
   const [saving, setSaving] = useState(false);
-  let official = false;
-  try {
-    const endpoint = new URL(model?.api_url);
-    official = endpoint.protocol === 'https:' && endpoint.hostname === 'api.deepseek.com';
-  } catch { /* -------- 未加载或无效配置不触发首次填 Key 横幅 -------- */ }
-  if (loading || error || !official || model.has_api_key) return null;
+  if (loading || error || !model?.official_deepseek || model.has_api_key) return null;
 
   async function save(event) {
     event.preventDefault();

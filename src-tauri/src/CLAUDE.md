@@ -9,7 +9,9 @@ credentials.rs: 系统钥匙串凭据唯一边界，以协议及端点隔离 Key
 store.rs: 设置校验与升级迁移；所有设置经单一锁写入 SQLite，凭据先迁移验证、数据库提交后才清除旧 JSON 明文。
 settings_db.rs: 单行 JSON 文档的 SQLite 事务，保留未知根字段；首次读取旧文件，之后数据库唯一权威，待办标记让明文清理可重试。
 ai_translator.rs: 模型请求与最终文本解析；现代 OpenAI 使用 developer/完成预算，已核准本地 Qwen 默认关闭思考，旧模型兼容不污染其他协议。
-model_presets.rs: 当前轻量模型与旧标签迁移；OpenAI Luna、本地 Qwen3.5、腾讯分区、硅基与302使用官方端点和精确 ID。
+model_presets.rs: Rust 唯一供应商目录，向界面提供当前预设、官方端点与精确 ID；历史标签仅兼容，迁移不重置用户地址。
+model_config.rs: 模型契约、端点归一与本地/官方服务分类；前端不重复 URL 策略，运行时属性不持久化。
+model_editor.rs: 原生测连诊断、计时与显式复制最近报告；仅含服务/协议/模型和脱敏结果，不接收前端拼装诊断。
 native_keyboard.rs: macOS 键盘创建、布局查询及事件注入只在主线程；后台误调用先拒绝，网络和等待不占主线程。
 scenes.rs: 游戏语境与地区提示词；模型请求读取设置后组合提示词。
 shortcut.rs: 规范按键、注册及持久化事务；Pressed/Released/过期周期进入诊断，真实绑定状态可查询，录制使旧周期失效。
