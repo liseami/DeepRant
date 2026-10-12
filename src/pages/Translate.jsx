@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖 cromma-ui / Pika、StoreProvider 游戏风格设置、Rust translate_text 与系统剪贴板
- * [OUTPUT]: 提供 toxic / pro / auto 三种游戏翻译风格，以及折叠的次级辅助翻译
- * [POS]: 游戏内翻译的表达策略入口；选项使用统一面板，主翻译由全局快捷键执行
+ * [INPUT]: 依赖 Cromma UI / Pika、公开风格与通用提示词、Rust translate_text 和系统剪贴板
+ * [OUTPUT]: 提供游戏 / 日常共用的三种表达风格、通用提示词和次级辅助翻译
+ * [POS]: 表达策略集中编辑，所有输入方式消费同一后端提示词，不在页面自行拼接模型请求
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Panel, PanelHeader, Button, Textarea, SidebarButton, motion, MOTION } from 'cromma-ui';
 import { MegaphoneAnnouncementShout, KeyboardWired, Translate as TranslateIcon, CheckTickCircle, CopyDefault, SendPlaneHorizontal } from 'cromma-ui/pika';
 import { invoke } from '@tauri-apps/api/core';
@@ -26,7 +26,19 @@ export default function Translate() {
     const [text, setText] = useState('');
     const [result, setResult] = useState('');
     const [busy, setBusy] = useState(false);
+    const [instructions, setInstructions] = useState(settings.custom_instructions || '');
+    const [savingInstructions, setSavingInstructions] = useState(false);
     const chinese = locale === 'zh';
+
+    useEffect(() => { setInstructions(settings.custom_instructions || ''); }, [settings.custom_instructions]);
+
+    async function saveInstructions(event) {
+        event.preventDefault();
+        setSavingInstructions(true);
+        try { await updateSettings({ custom_instructions: instructions }); showSuccess(t('saved')); }
+        catch (failure) { showError(failure); }
+        finally { setSavingInstructions(false); }
+    }
 
     async function changeMode(mode) {
         setChangingMode(true);
@@ -54,7 +66,7 @@ export default function Translate() {
         <section className="min-w-0">
             <header className="workspace-title">
                 <h1>{chinese ? '翻译模式' : 'Translation modes'}</h1>
-                <p className="mt-2 text-sm text-muted-foreground">{chinese ? '选择一个翻译模式来适应不同的游戏场景。一次只能启用一个模式。' : 'Choose the translation mode that suits your game. Only one mode is active at a time.'}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{chinese ? '选择适合游戏或日常聊天的表达风格。一次启用一个模式，所有输入方式共用。' : 'Choose a tone for games or everyday conversations. One mode applies across every input workflow.'}</p>
             </header>
             <motion.div className="space-y-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={MOTION.base}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -75,6 +87,17 @@ export default function Translate() {
                         </Panel>;
                     })}
                 </div>
+                <Panel>
+                    <PanelHeader title={chinese ? '通用提示词' : 'Custom instructions'} subtitle={chinese ? '适用于游戏、QQ、微信和社区表达；术语对照表在主页编辑。' : 'Applies to games, messaging, and social conversations. Edit your glossary on Home.'} />
+                    <form onSubmit={saveInstructions} className="space-y-3 p-4">
+                        <label htmlFor="custom-instructions" className="block text-sm font-medium">{chinese ? '你的表达偏好' : 'Your preferences'}</label>
+                        <Textarea id="custom-instructions" rows={3} maxLength={12000} value={instructions} disabled={savingInstructions}
+                            placeholder={chinese ? '例如：帮我用简短、有逻辑的口语回复，保留我的立场，不添加人身攻击。' : 'For example: keep replies brief, conversational, and logical. Preserve my position without adding personal attacks.'}
+                            onChange={event => setInstructions(event.target.value)} />
+                        <Button type="submit" variant="secondary" size="small" loading={savingInstructions}
+                            disabled={savingInstructions || instructions === (settings.custom_instructions || '')}>{t('save')}</Button>
+                    </form>
+                </Panel>
                 <Panel>
                     <details>
                         <summary className="cursor-pointer px-4 py-4 text-base font-medium">{chinese ? '辅助翻译' : 'Auxiliary translation'}</summary>

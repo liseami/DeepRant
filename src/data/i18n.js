@@ -74,7 +74,7 @@ const messages = {
   hotkeySaved: ['快捷键已更新', 'Shortcut updated'],
   permissions: ['输入与权限', 'Input and permissions'],
   permissionsHelp: ['macOS 请在系统设置 → 隐私与安全性 → 辅助功能中允许 DeepRant。Windows 中游戏与 DeepRant 的权限级别需一致。', 'On macOS, allow DeepRant in System Settings → Privacy & Security → Accessibility. On Windows, the game and DeepRant must run at the same privilege level.'],
-  inputHelp: ['打开聊天框并输入内容后按快捷键。日常模式先选中文字。游戏不能复制时，请使用手动翻译并复制结果粘贴；不改动游戏文件。', 'Type in an open chat field, then press the shortcut. In everyday mode, select text first. If a game cannot copy text, translate manually and paste the result. Game files are untouched.'],
+  inputHelp: ['原位翻译：输入内容后按快捷键，日常模式先选中文字。输入浮窗：先打开空聊天框，再按快捷键写消息并回填；LoL 自动使用浮窗。', 'Inline translation: type, then press your shortcut; select text first in everyday mode. Message window: open an empty chat field, press your shortcut, write, and insert. LoL uses the message window automatically.'],
   manualTitle: ['手动翻译与润色', 'Translate and rewrite'],
   manualDescription: ['在受限游戏输入框和网页中，也可以在这里翻译，再复制结果。使用主页选定的语言、语境和风格。', 'Translate here and copy the result for restricted game fields or websites. Uses the languages, context, and tone selected on Home.'],
   inputText: ['输入原文', 'Source text'],

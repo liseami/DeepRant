@@ -25,7 +25,7 @@ export default function Sidebar({ activeItem, setActiveItem }) {
   return (
     <aside className="app-sidebar">
       <div className="app-brand">
-        <img src={appIcon} alt="DeepRant" width="36" height="36" draggable={false} className="rounded-xl" />
+        <img src={appIcon} alt="DeepRant" width="36" height="36" draggable={false} />
         <strong>DeepRant</strong>
       </div>
       <nav aria-label={locale === 'en' ? 'Main navigation' : '主导航'}>

@@ -1,16 +1,19 @@
 /**
- * [INPUT]: 依赖 React 根挂载、Cromma UI 动效与提示上下文、App 与同源主题
- * [OUTPUT]: 提供 WebView 的 React 启动入口
- * [POS]: 页面生命周期起点，StrictMode 用于暴露副作用清理错误
+ * [INPUT]: 依赖 React 根挂载、Cromma UI 上下文、App / Composer 与同源主题
+ * [OUTPUT]: 提供主窗口或原生游戏输入浮窗的 React 启动入口
+ * [POS]: 两个原生窗口共用主题，浮窗按独立 hash 挂载，避免加载主窗口导航与更新流程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { MotionRoot, TooltipProvider } from 'cromma-ui';
+import { Loader, MotionRoot, TooltipProvider } from 'cromma-ui';
 import './index.css';
 
+const Composer = lazy(() => import('./pages/Composer'));
+const content = window.location.hash === '#composer' ? <Suspense fallback={<Loader />}><Composer /></Suspense> : <App />;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode><MotionRoot><TooltipProvider delayDuration={600}><App /></TooltipProvider></MotionRoot></React.StrictMode>
+  <React.StrictMode><MotionRoot><TooltipProvider delayDuration={600}>{content}</TooltipProvider></MotionRoot></React.StrictMode>
 );

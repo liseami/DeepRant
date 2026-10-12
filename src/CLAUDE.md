@@ -1,7 +1,7 @@
 # src/
 > L2 | 父级: ../CLAUDE.md
 成员清单
-main.jsx: React 挂载入口。
+main.jsx: React 挂载入口，主导航与游戏输入浮窗共用主题、独立页面生命周期。
 App.jsx: 游戏页面导航，主页常驻以复用录屏播放器，其余页面按需加载；没有登录或额度路由。
 index.css: Tailwind 4 与 Cromma UI 主题入口，复用 CCBaga 墨色令牌、斜纹外框和点阵标题；控件几何留在组件库。
 types.d.ts: 静态资源类型声明。

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "composer",
+  "description": "Game message window event bridge and explicit result copying; targets and input sessions stay in Rust",
+  "windows": ["composer"],
+  "permissions": ["core:default", "clipboard-manager:allow-write-text"]
+}
