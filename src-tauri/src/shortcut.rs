@@ -77,6 +77,12 @@ pub fn keys_to_hotkey(keys: Vec<String>) -> Result<HotkeyConfig, String> {
     }
     let key = primary.ok_or_else(|| "快捷键缺少主键".to_string())?;
     Code::from_str(&key).map_err(|_| format!("当前系统不支持按键代码 {key}"))?;
+    #[cfg(target_os = "windows")]
+    if matches!(key.as_str(), "NumpadEnter" | "NumpadEqual") {
+        return Err(
+            "Windows 的全局快捷键接口无法独立区分这个小键盘键，请改用小键盘数字键或 F 键".into(),
+        );
+    }
     if modifiers.is_empty() && !standalone_key(&key) {
         return Err(
             "普通按键需搭配 Control / Alt / Shift / Command；F1–F24 或数字小键盘可单独使用".into(),
@@ -405,8 +411,12 @@ mod tests {
         let hotkey =
             keys_to_hotkey(keys(&["ShiftRight", "ControlLeft", "ControlRight", "KeyT"])).unwrap();
         assert_eq!(hotkey.modifiers, keys(&["Control", "Shift"]));
-        for key in ["Numpad0", "NumpadEnter", "F13", "F24"] {
+        for key in ["Numpad0", "F13", "F24"] {
             assert!(keys_to_hotkey(keys(&[key])).is_ok());
+        }
+        #[cfg(target_os = "windows")]
+        for key in ["NumpadEnter", "NumpadEqual"] {
+            assert!(keys_to_hotkey(keys(&[key])).is_err());
         }
         for combination in [
             &["KeyT"][..],
