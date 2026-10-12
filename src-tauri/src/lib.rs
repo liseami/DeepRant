@@ -1,6 +1,6 @@
 /**
  * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、ai_translator 模型管道、game_composer 独立输入会话。
- * [OUTPUT]: 受校验的设置/常用语/翻译/游戏输入 IPC 与桌面生命周期；浮窗关闭使用取消事务。
+ * [OUTPUT]: 受校验的设置/翻译/游戏输入 IPC；启动和 macOS Reopen 激活主窗口，浮窗关闭取消输入。
  * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键注册与持久化一起提交；日志限警告，避免依赖的调试日志记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -281,6 +281,12 @@ pub fn run() {
             game_composer::commit_composer,
             game_composer::cancel_composer
         ])
-        .run(tauri::generate_context!())
-        .expect("DeepRant desktop runtime failed");
+        .build(tauri::generate_context!())
+        .expect("DeepRant desktop runtime failed")
+        .run(|app, event| match event {
+            tauri::RunEvent::Ready => show_main(app),
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => show_main(app),
+            _ => {}
+        });
 }
