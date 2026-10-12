@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cromma UI / Pika、公开模型设置、供应商预设、Rust 凭据 / 测连与系统剪贴板
- * [OUTPUT]: 提供模型配置、R1 兼容选择及可复制的安全连接诊断
+ * [OUTPUT]: 提供当前模型配置、通用推理预算选择及可复制的安全连接诊断
  * [POS]: 模型配置入口；凭据只在密码草稿短暂存在，诊断只记录服务名、协议、模型、耗时和后端脱敏结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -133,7 +133,7 @@ export default function Settings() {
                             </div>
                             {draft.protocol !== 'anthropic' && <label className="flex items-start gap-2 text-sm">
                                 <Checkbox checked={Boolean(draft.reasoning_model)} onCheckedChange={value => change('reasoning_model', value === true)} />
-                                <span>{chinese ? 'R1 推理模型兼容' : 'R1 reasoning compatibility'}<span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{chinese ? '用于本地 DeepSeek-R1 等模型，预留推理时间和输出空间。普通游戏翻译可关闭以更快响应。' : 'Allows reasoning time and output space for models such as local DeepSeek-R1. Keep off for quicker ordinary game translations.'}</span></span>
+                                <span>{chinese ? '允许模型思考' : 'Allow model reasoning'}<span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{chinese ? '开启后为推理预留更多输出空间和等待时间。游戏聊天默认关闭，优先快速返回译文。' : 'Reserve more output space and time for reasoning. Keep off for quicker game translations.'}</span></span>
                             </label>}
                             <p className="text-sm text-muted-foreground leading-relaxed">{t(isLocal ? 'localKeyHelp' : 'keyHelp')}</p>
                             <div className="flex items-center gap-2 flex-wrap pt-2">

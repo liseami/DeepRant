@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # [INPUT]: 本机开发/正式 DeepRant 构建，或参数指定的已挂载 DMG；固定包标识与 macOS 签名/注册工具。
 # [OUTPUT]: 核验后事务替换 /Applications 中的 DeepRant，移除同标识旧名副本，启动新版游戏翻译应用；失败恢复应用包。
-# [POS]: 安装唯一执行层；保留隔离与用户资料；开发仅接受本机临时签名 debug 包，正式/DMG 保持 Gatekeeper 强验收。
+# [POS]: 保留隔离与资料；开发只接收固定本机 debug 路径，允许临时签名或同团队 Developer ID，正式盘强制 Gatekeeper。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 from pathlib import Path
 import os
@@ -25,15 +25,18 @@ def identity(app):
 def verify(app, development=False):
     run('codesign', '--verify', '--deep', '--strict', app)
     if development:
-        if 'Signature=adhoc' not in run('codesign', '--display', '--verbose=2', app).stderr.splitlines():
-            raise RuntimeError('Development installation requires local ad-hoc signed debug apps')
+        metadata = run('codesign', '--display', '--verbose=2', app).stderr.splitlines()
+        if 'Signature=adhoc' not in metadata and not (
+                'TeamIdentifier=6UB6WM6VQR' in metadata and
+                'Authority=Developer ID Application: Shanghai Diyu Network Technology Co., Ltd (6UB6WM6VQR)' in metadata):
+            raise RuntimeError('Local development requires ad-hoc or the expected Developer ID team')
     else:
         run('spctl', '--assess', '--type', 'execute', app)
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description='Install local debug apps or verified release apps')
     parser.add_argument('folder', nargs='?', help='Mounted official DMG folder')
-    parser.add_argument('--development', action='store_true', help='Only local ad-hoc debug builds; no DMG input')
+    parser.add_argument('--development', action='store_true', help='Only fixed local debug builds; no DMG input')
     args = parser.parse_args(argv)
     if args.development and args.folder:
         parser.error('--development cannot install a downloaded or mounted installer')
@@ -108,6 +111,6 @@ def main():
     try: refresh_dock()
     except subprocess.CalledProcessError: print('Applications installed; Dock refresh could not complete.', file=sys.stderr)
     run('open', '-a', '/Applications/DeepRant.app')
-    print('Installed fresh DeepRant; ' + ('local development ad-hoc signatures verified.' if args.development else 'strict signatures and Gatekeeper passed.'))
+    print('Installed fresh DeepRant; ' + ('local development identity and signatures verified.' if args.development else 'strict signatures and Gatekeeper passed.'))
 if __name__ == '__main__':
     main()

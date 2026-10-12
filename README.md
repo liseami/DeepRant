@@ -211,7 +211,7 @@ npm run tauri dev
 npm run dev:install
 ```
 
-沿用 CCBaga 的本机交付方式：重新构建内嵌界面的 debug 应用、临时签名、事务替换 `/Applications/DeepRant.app` 并启动。保留用户设置；不会使用 Apple 发布凭据，也不会发布到 GitHub。
+在 `release` 分支运行本机交付：重新构建内嵌界面的 debug 应用，使用系统钥匙串里的同团队 Developer ID 稳定签名，事务替换 `/Applications/DeepRant.app` 并启动。没有证书时回退临时签名；不会读取公证或更新私钥，不自动发布。稳定签名避免每次编译改变辅助功能的授权身份。
 
 每次生成 `releases/DeepRant-<version>-local-arm64-<commit>.app.zip` 与 `releases/local-build.json`，记录源码 commit、时间与 SHA-256。技术检查由整合方完成，界面和实际游戏行为需要在目标环境验收。本机开发包不是正式发行包。
 

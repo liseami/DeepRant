@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parent
@@ -98,6 +99,22 @@ class ReleaseContracts(unittest.TestCase):
             env = module.development_env()
             self.assertFalse(any(key in env for key in keys))
             self.assertEqual(env['CC_SIGN_IDENTITY'], '-')
+
+    def test_local_installation_accepts_only_expected_signing_team(self):
+        spec = importlib.util.spec_from_file_location('installation_contract', SOURCE / 'install-apps.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for metadata, allowed in [
+                ('Signature=adhoc', True),
+                ('TeamIdentifier=6UB6WM6VQR\nAuthority=Developer ID Application: Shanghai Diyu Network Technology Co., Ltd (6UB6WM6VQR)', True),
+                ('TeamIdentifier=OTHER\nAuthority=Developer ID Application: Someone else (OTHER)', False),
+                ('TeamIdentifier=6UB6WM6VQR\nAuthority=Apple Development: example', False)]:
+            with self.subTest(metadata=metadata), patch.object(module, 'run', return_value=SimpleNamespace(stderr=metadata)):
+                if allowed:
+                    module.verify(Path('/fixture/DeepRant.app'), True)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        module.verify(Path('/fixture/DeepRant.app'), True)
 
 
 if __name__ == '__main__':

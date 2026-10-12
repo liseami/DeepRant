@@ -190,7 +190,7 @@ fn request_body(config: &ModelConfig, prompt: &str, text: &str) -> Value {
             .as_deref()
             == Some("api.deepseek.com")
     {
-        body["thinking"] = json!({ "type": "disabled" });
+        body["thinking"] = json!({ "type": if config.reasoning_model { "enabled" } else { "disabled" } });
     }
     body
 }
