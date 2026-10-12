@@ -5,8 +5,8 @@ lib.rs: Tauri 生命周期与 IPC；启动 / macOS Reopen 激活主窗口，主�
 main.rs: 桌面程序入口，只调用库运行函数。
 credentials.rs: 系统钥匙串凭据唯一边界，以协议及端点隔离 Key，WebView 无明文读权限。
 store.rs: 原子 JSON 持久化与升级迁移；校验输入方式/通用提示词/模型推理开关，读错保留原文件，凭据迁移先验证再清明文。
-ai_translator.rs: 模型请求与最终文本解析；测试和翻译共用 R1 兼容预算，风格及全局要求适用于游戏与日常。
-model_presets.rs: 供应商起始配置与旧标签迁移；腾讯分区、硅基、302 和本地 R1 使用官方端点及精确模型 ID。
+ai_translator.rs: 模型请求与最终文本解析；现代 OpenAI 使用 developer/完成预算，已核准本地 Qwen 默认关闭思考，旧模型兼容不污染其他协议。
+model_presets.rs: 当前轻量模型与旧标签迁移；OpenAI Luna、本地 Qwen3.5、腾讯分区、硅基与302使用官方端点和精确 ID。
 scenes.rs: 游戏语境与地区提示词；模型请求读取设置后组合提示词。
 shortcut.rs: 规范按键、系统注册及持久化事务；IPC 共享锁避免覆盖，释放事件调度输入，录制使旧周期失效。
 shell_helper.rs: 原位输入、焦点与剪贴板恢复；共享锁阻止并发，浮窗 Unicode 按 UTF-16 限长、保留代理对、每片段核验目标。

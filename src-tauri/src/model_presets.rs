@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 store::ModelConfig；供应商文档仅决定可编辑的起始地址与模型 ID
- * [OUTPUT]: 提供 model_preset，覆盖远程供应商、腾讯分区与 Ollama R1 兼容配置
+ * [OUTPUT]: 提供 model_preset，覆盖当前轻量供应商、腾讯分区与旧标签迁移配置
  * [POS]: 原生预设的单一目录；store 消费它做旧配置迁移与 provider 校验，凭据不在此存放
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,11 +8,12 @@ use crate::store::ModelConfig;
 
 // ---------------------------------------------------------------------------
 // 2026-10-12 核对官方文档；所有预设可编辑，不承诺供应商额度或模型长期在线
+// OpenAI: https://developers.openai.com/api/docs/models/gpt-6-luna
 // DeepSeek: https://api-docs.deepseek.com/
 // Tencent: https://cloud.tencent.com/document/product/1823/130079
 // SiliconFlow: https://api-docs.siliconflow.cn/docs/api/chat-completions-post
 // 302.AI: https://doc.302.ai/171145944e0
-// Ollama R1: https://ollama.com/library/deepseek-r1:8b
+// Ollama: https://ollama.com/library/qwen3.5:4b
 // ---------------------------------------------------------------------------
 
 pub fn model_preset(provider: &str) -> Option<ModelConfig> {
@@ -29,7 +30,7 @@ pub fn model_preset(provider: &str) -> Option<ModelConfig> {
             "openai",
             false,
         ),
-        "openai" => ("https://api.openai.com/v1", "gpt-4.1-mini", "openai", false),
+        "openai" => ("https://api.openai.com/v1", "gpt-6-luna", "openai", false),
         "anthropic" => (
             "https://api.anthropic.com/v1",
             "claude-haiku-5-5",
@@ -60,7 +61,8 @@ pub fn model_preset(provider: &str) -> Option<ModelConfig> {
             "openai",
             false,
         ),
-        "ollama" => ("http://localhost:11434/v1", "qwen3:8b", "openai", false),
+        "ollama" => ("http://localhost:11434/v1", "qwen3.5:4b", "openai", false),
+        // 旧标签仅供升级迁移；前端不再推荐，已有可编辑配置不会在读取时被覆盖。
         "ollama-r1" => (
             "http://localhost:11434/v1",
             "deepseek-r1:8b",

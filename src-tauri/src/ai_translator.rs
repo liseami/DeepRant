@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 store 的已校验设置、credentials 的端点凭据与 scenes 的游戏语境
  * [OUTPUT]: 提供手动翻译、输入事务翻译与连接测试；语境、风格及全局要求共同约束最终译文
- * [POS]: 共用原生 HTTP 边界；R1 兼容参数与思考过滤在此收口，失败不得输出凭据或服务端原文
+ * [POS]: 共用原生 HTTP 边界；现代 OpenAI 参数、Ollama 思考控制与旧模型兼容在此收口，错误不回显凭据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
@@ -74,7 +74,42 @@ fn system_prompt(settings: &AppSettings) -> String {
 }
 
 fn reasoning_profile(config: &ModelConfig) -> bool {
-    config.protocol == "openai" && config.reasoning_model
+    config.protocol == "openai"
+        && (config.reasoning_model || openai_reasoning_effort(config) == Some("low"))
+}
+
+fn official_openai(config: &ModelConfig) -> bool {
+    config.protocol == "openai"
+        && reqwest::Url::parse(&config.api_url)
+            .ok()
+            .is_some_and(|url| url.host_str() == Some("api.openai.com"))
+}
+
+fn openai_reasoning_effort(config: &ModelConfig) -> Option<&'static str> {
+    let model = config.model_name.as_str();
+    if !official_openai(config)
+        || !["gpt-5", "gpt-6", "o1", "o3", "o4"]
+            .iter()
+            .any(|prefix| model.starts_with(prefix))
+    {
+        return None;
+    }
+    // 当前轻量 Luna / Sol 支持 none；其他推理模型保守使用共同支持的 low。
+    Some(
+        if !config.reasoning_model && matches!(model, "gpt-6-luna" | "gpt-6-sol") {
+            "none"
+        } else {
+            "low"
+        },
+    )
+}
+
+fn local_qwen(config: &ModelConfig) -> bool {
+    config.protocol == "openai"
+        && config.model_name.starts_with("qwen3.5:")
+        && reqwest::Url::parse(&config.api_url)
+            .ok()
+            .is_some_and(|url| is_loopback(&url) && url.port() == Some(11434))
 }
 
 fn request_timeout(config: &ModelConfig) -> u64 {
@@ -86,6 +121,11 @@ fn request_timeout(config: &ModelConfig) -> u64 {
 }
 
 fn request_body(config: &ModelConfig, prompt: &str, text: &str) -> Value {
+    let budget = if reasoning_profile(config) {
+        REASONING_OUTPUT_TOKENS
+    } else {
+        MAX_OUTPUT_TOKENS
+    };
     let mut body = if config.protocol == "anthropic" {
         json!({
             "model": config.model_name,
@@ -94,12 +134,33 @@ fn request_body(config: &ModelConfig, prompt: &str, text: &str) -> Value {
             "max_tokens": MAX_OUTPUT_TOKENS,
             "stream": false
         })
-    } else if reasoning_profile(config) {
-        // R1 官方建议不使用 system role；说明和素材保持在同一个 user 回合。
+    } else if official_openai(config) {
+        // 官方现代模型使用 developer 与 max_completion_tokens；兼容供应商不继承专用参数。
+        let effort = openai_reasoning_effort(config);
+        let mut body = json!({
+            "model": config.model_name,
+            "messages": [
+                { "role": if effort.is_some() { "developer" } else { "system" }, "content": prompt },
+                { "role": "user", "content": text }
+            ],
+            "max_completion_tokens": budget,
+            "stream": false
+        });
+        if let Some(effort) = effort {
+            body["reasoning_effort"] = json!(effort);
+        }
+        body
+    } else if config.reasoning_model
+        && config
+            .model_name
+            .to_ascii_lowercase()
+            .contains("deepseek-r1")
+    {
+        // 历史 R1 系列不使用 system role；只作为旧用户自定义模型的内部兼容能力。
         json!({
             "model": config.model_name,
             "messages": [{ "role": "user", "content": format!("{prompt}\n\n待处理原文：\n{text}") }],
-            "max_tokens": REASONING_OUTPUT_TOKENS,
+            "max_tokens": budget,
             "stream": false
         })
     } else {
@@ -109,10 +170,18 @@ fn request_body(config: &ModelConfig, prompt: &str, text: &str) -> Value {
                 { "role": "system", "content": prompt },
                 { "role": "user", "content": text }
             ],
-            "max_tokens": MAX_OUTPUT_TOKENS,
+            "max_tokens": budget,
             "stream": false
         })
     };
+    // 已核准的本地 Qwen3.5 支持 OpenAI reasoning_effort；默认关闭思考，降低游戏内延迟。
+    if local_qwen(config) {
+        body["reasoning_effort"] = json!(if config.reasoning_model {
+            "low"
+        } else {
+            "none"
+        });
+    }
     // DeepSeek 默认思考；仅官方端点追加其扩展字段，避免污染兼容供应商协议。
     if config.protocol == "openai"
         && reqwest::Url::parse(&config.api_url)
@@ -453,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn r1_profile_keeps_instructions_in_user_and_reserves_reasoning_budget() {
+    fn legacy_local_profile_keeps_instructions_and_reserves_reasoning_budget() {
         let mut config = ModelConfig {
             api_url: "http://localhost:11434/v1/chat/completions".into(),
             model_name: "deepseek-r1:8b".into(),
@@ -474,6 +543,52 @@ mod tests {
         assert_eq!(body["system"], "翻译规则");
         assert_eq!(body["max_tokens"], MAX_OUTPUT_TOKENS);
         assert_eq!(request_timeout(&config), REQUEST_TIMEOUT_SECONDS);
+    }
+
+    #[test]
+    fn modern_openai_and_local_qwen_keep_their_own_wire_parameters() {
+        let mut config = ModelConfig {
+            api_url: "https://api.openai.com/v1/chat/completions".into(),
+            model_name: "gpt-6-luna".into(),
+            ..ModelConfig::default()
+        };
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["messages"][0]["role"], "developer");
+        assert_eq!(body["max_completion_tokens"], MAX_OUTPUT_TOKENS);
+        assert_eq!(body["reasoning_effort"], "none");
+        assert!(body.get("max_tokens").is_none());
+        assert!(body.get("thinking").is_none());
+        assert_eq!(request_timeout(&config), REQUEST_TIMEOUT_SECONDS);
+
+        config.reasoning_model = true;
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["max_completion_tokens"], REASONING_OUTPUT_TOKENS);
+        assert_eq!(body["reasoning_effort"], "low");
+        assert_eq!(request_timeout(&config), REASONING_TIMEOUT_SECONDS);
+
+        config.reasoning_model = false;
+        config.model_name = "gpt-6-astra".into();
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["reasoning_effort"], "low");
+        assert_eq!(body["max_completion_tokens"], REASONING_OUTPUT_TOKENS);
+
+        config.api_url = "https://example.com/v1/chat/completions".into();
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert!(body.get("max_completion_tokens").is_none());
+        assert!(body.get("reasoning_effort").is_none());
+
+        config.api_url = "http://localhost:11434/v1/chat/completions".into();
+        config.model_name = "qwen3.5:4b".into();
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert_eq!(body["max_tokens"], MAX_OUTPUT_TOKENS);
+        assert_eq!(body["reasoning_effort"], "none");
+        config.reasoning_model = true;
+        let body = request_body(&config, "翻译规则", "原文");
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert_eq!(body["max_tokens"], REASONING_OUTPUT_TOKENS);
+        assert_eq!(body["reasoning_effort"], "low");
     }
 
     #[test]
