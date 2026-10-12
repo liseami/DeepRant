@@ -4,7 +4,7 @@
 <dict>
     <!-- 自动化操作权限 -->
     <key>NSAppleEventsUsageDescription</key>
-    <string>DeepRant需要使用AppleScript来模拟键盘操作，以实现文本选择和快捷键功能</string>
+    <string>DeepRant 通过辅助功能与输入模拟，在游戏聊天框中完成复制和粘贴。</string>
     
     <!-- System Events 特定权限 -->
     <key>NSSystemEventsUsageDescription</key>
@@ -12,7 +12,7 @@
     
     <!-- 辅助功能权限 -->
     <key>NSAccessibilityUsageDescription</key>
-    <string>DeepRant需要辅助功能权限来模拟键盘操作和文本选择</string>
+    <string>DeepRant 通过辅助功能与输入模拟，在游戏聊天框中完成复制和粘贴。</string>
 
     <!-- 允许作为Agent运行 -->
     <key>LSUIElement</key>
