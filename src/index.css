@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Tailwind 4、Cromma UI 主题和 CCBaga 的 Laper 应用壳布局参数
- * [OUTPUT]: 提供同款斜纹外框、点阵标题、细线工作面与共享模态位置
+ * [OUTPUT]: 提供同款斜纹外框、全宽 Key 横幅、点阵标题、细线工作面与共享模态位置
  * [POS]: 应用布局层；控件边缘、高光、圆角和动效取 Cromma UI，不另造按钮皮肤
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -43,7 +43,12 @@ svg { flex-shrink: 0; }
 input, textarea, code { user-select: text; }
 
 /* -------- CCBaga 同款应用外框与侧栏，游戏菜单内容保持 DeepRant 原流程 -------- */
-.app-shell { display: flex; height: 100vh; padding: var(--landing-band); gap: var(--landing-band); background-color: var(--background); background-image: var(--landing-hatch); }
+.app-shell { display: flex; flex-direction: column; height: 100vh; padding: var(--landing-band); gap: var(--landing-band); background-color: var(--background); background-image: var(--landing-hatch); }
+.app-shell-body { display: flex; flex: 1; min-height: 0; gap: var(--landing-band); }
+.key-banner { flex-shrink: 0; gap: 14px; padding: 16px 20px; background: var(--accent); }
+.key-banner-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.key-banner-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.key-banner-form > div { flex-basis: 340px; }
 .app-sidebar { --sidebar: #fff; --sidebar-accent: #ededeb; display: flex; flex-direction: column; width: 240px; flex-shrink: 0; background: var(--sidebar); overflow: hidden; border: 1px solid var(--landing-line); }
 .app-brand { display: flex; gap: 10px; align-items: center; height: 72px; flex-shrink: 0; padding: 0 12px 0 22px; }
 .app-brand img { object-fit: cover; flex-shrink: 0; }
@@ -70,4 +75,5 @@ input, textarea, code { user-select: text; }
 @keyframes dialog-fade { from { opacity: 0; } }
 
 @media (max-width: 1000px) { .app-sidebar { width: 208px; } }
+@media (max-width: 720px) { .key-banner-form > div { flex-basis: 100%; } }
 @media (prefers-reduced-motion: reduce) { .app-dialog-overlay { animation: none; } }
