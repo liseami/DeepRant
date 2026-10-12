@@ -88,6 +88,17 @@ class ReleaseContracts(unittest.TestCase):
             spec.loader.exec_module(module)
             self.assertFalse(any(key in module.SAFE_ENV for key in keys))
 
+    def test_local_delivery_filters_release_credentials(self):
+        keys = ['APPLE_CERTIFICATE', 'APPLE_API_PRIVATE_KEY', 'TAURI_SIGNING_PRIVATE_KEY',
+                'TAURI_SIGNING_PRIVATE_KEY_PATH', 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD']
+        with patch.dict(os.environ, {key: 'fixture-only' for key in keys}):
+            spec = importlib.util.spec_from_file_location('local_delivery_contract', SOURCE / 'dev-install.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            env = module.development_env()
+            self.assertFalse(any(key in env for key in keys))
+            self.assertEqual(env['CC_SIGN_IDENTITY'], '-')
+
 
 if __name__ == '__main__':
     unittest.main()
