@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cromma UI / Pika、公开风格与通用提示词、Rust 翻译与复制命令
- * [OUTPUT]: 提供游戏 / 日常共用的三种表达风格、通用提示词和次级辅助翻译
- * [POS]: 表达策略集中编辑，所有输入方式消费同一后端提示词，不在页面自行拼接模型请求
+ * [INPUT]: 依赖 Cromma UI / Pika、公开风格与自定义提示词、Rust 提示词查询 / 复制和翻译命令
+ * [OUTPUT]: 提供游戏 / 日常共用的三种表达风格、自定义提示词编辑、生效提示词查看和次级辅助翻译
+ * [POS]: 表达策略集中编辑；提示词生成、复制和持久化由 Rust 统一负责，页面只展示保存后的实际策略
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -14,7 +14,7 @@ import { languageName } from '../data/languages';
 import { showError, showSuccess } from '../utils/toast';
 
 const modes = [
-    { id: 'toxic', Icon: MegaphoneAnnouncementShout, name: ['嘴臭模式', 'Trash talk'], description: ['将友好的对话转换为富有火药味的表达，适合竞技游戏的氛围。', 'Give your words a competitive edge for heated game chat.'] },
+    { id: 'toxic', Icon: MegaphoneAnnouncementShout, name: ['嘴臭模式', 'Trash talk'], description: ['脏话、battle、diss 和西海岸式张狂，用大胆比喻与创造性嘲讽放大原话的火药味。', 'Profanity, battle energy, diss lines, and West Coast swagger. Turn up the heat with bold metaphors and inventive roasts.'] },
     { id: 'pro', Icon: KeyboardWired, name: ['职业玩家模式', 'Pro player'], description: ['使用专业的游戏术语和简短指令，提高团队配合效率。', 'Use game terminology and concise calls to coordinate your team.'] },
     { id: 'auto', Icon: TranslateIcon, name: ['自动模式', 'Automatic'], description: ['根据当前游戏语境自然翻译，保留原文的意思和语气。', 'Translate naturally for your game while preserving the original meaning and tone.'] },
 ];
@@ -27,9 +27,20 @@ export default function Translate() {
     const [busy, setBusy] = useState(false);
     const [instructions, setInstructions] = useState(settings.custom_instructions || '');
     const [savingInstructions, setSavingInstructions] = useState(false);
+    const [effectivePrompt, setEffectivePrompt] = useState('');
+    const [loadingPrompt, setLoadingPrompt] = useState(true);
+    const [promptRevision, setPromptRevision] = useState(0);
     const chinese = locale === 'zh';
 
     useEffect(() => { setInstructions(settings.custom_instructions || ''); }, [settings.custom_instructions]);
+    useEffect(() => {
+        let active = true;
+        setLoadingPrompt(true);
+        invoke('get_translation_prompt').then(prompt => { if (active) setEffectivePrompt(prompt); })
+            .catch(failure => { if (active) { setEffectivePrompt(''); showError(failure); } })
+            .finally(() => { if (active) setLoadingPrompt(false); });
+        return () => { active = false; };
+    }, [settings, promptRevision]);
 
     async function saveInstructions(event) {
         event.preventDefault();
@@ -40,8 +51,9 @@ export default function Translate() {
     }
 
     async function changeMode(mode) {
+        if (settings.translation_mode === mode) return;
         setChangingMode(true);
-        try { await updateSettings({ translation_mode: settings.translation_mode === mode ? 'auto' : mode }); }
+        try { await updateSettings({ translation_mode: mode }); }
         catch (failure) { showError(failure); }
         finally { setChangingMode(false); }
     }
@@ -58,6 +70,11 @@ export default function Translate() {
 
     async function copy() {
         try { await invoke('copy_plain_text', { text: result }); showSuccess(t('copied')); }
+        catch (failure) { showError(failure); }
+    }
+
+    async function copyPrompt() {
+        try { await invoke('copy_translation_prompt'); showSuccess(t('copied')); }
         catch (failure) { showError(failure); }
     }
 
@@ -87,15 +104,29 @@ export default function Translate() {
                     })}
                 </div>
                 <Panel>
-                    <PanelHeader title={chinese ? '通用提示词' : 'Custom instructions'} subtitle={chinese ? '适用于游戏、QQ、微信和社区表达；术语对照表在主页编辑。' : 'Applies to games, messaging, and social conversations. Edit your glossary on Home.'} />
+                    <PanelHeader title={chinese ? '自定义提示词' : 'Custom prompt'} subtitle={chinese ? '覆盖默认表达风格，保存后同时用于游戏和日常聊天；留空则使用所选模式。' : 'Override the default expression style for games and everyday chat. Leave empty to use the selected mode.'} />
                     <form onSubmit={saveInstructions} className="space-y-3 p-4">
-                        <label htmlFor="custom-instructions" className="block text-sm font-medium">{chinese ? '你的表达偏好' : 'Your preferences'}</label>
-                        <Textarea id="custom-instructions" rows={3} maxLength={12000} value={instructions} disabled={savingInstructions}
-                            placeholder={chinese ? '例如：帮我用简短、有逻辑的口语回复，保留我的立场，不添加人身攻击。' : 'For example: keep replies brief, conversational, and logical. Preserve my position without adding personal attacks.'}
+                        <label htmlFor="custom-instructions" className="block text-sm font-medium">{chinese ? '写下你想要的口吻、用词和发挥方式' : 'Describe the voice, wording, and creative style you want'}</label>
+                        <Textarea id="custom-instructions" rows={6} maxLength={12000} value={instructions} disabled={savingInstructions}
+                            placeholder={chinese ? '例如：像西海岸 battle 一样回嘴，敢用脏话、押韵和荒诞比喻，短句重击，把原话里的嘲讽放大。' : 'For example: clap back with West Coast battle swagger, profanity, rhyme, and absurd metaphors. Hit hard with short lines and amplify the original roast.'}
                             onChange={event => setInstructions(event.target.value)} />
                         <Button type="submit" variant="secondary" size="small" loading={savingInstructions}
                             disabled={savingInstructions || instructions === (settings.custom_instructions || '')}>{t('save')}</Button>
                     </form>
+                </Panel>
+                <Panel>
+                    <PanelHeader title={chinese ? '当前生效提示词' : 'Active prompt'} subtitle={chinese ? '完整查看当前语言、场景、模式和已保存自定义提示词的实际组合；未保存的修改不会生效。' : 'See the complete prompt for your language, scene, mode, and saved custom instructions. Unsaved edits do not apply.'} />
+                    <div className="space-y-3 p-4" aria-busy={loadingPrompt}>
+                        <label htmlFor="effective-prompt" className="block text-sm font-medium">{chinese ? '实际发送给模型的提示词' : 'Prompt sent to the model'}</label>
+                        <Textarea id="effective-prompt" rows={10} value={effectivePrompt} readOnly className="font-mono text-sm leading-relaxed"
+                            placeholder={chinese ? (loadingPrompt ? '正在读取生效提示词…' : '读取失败，请刷新重试。') : (loadingPrompt ? 'Loading the active prompt…' : 'Could not load the prompt. Refresh to try again.')} />
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="secondary" size="small" loading={loadingPrompt} disabled={loadingPrompt}
+                                onClick={() => setPromptRevision(revision => revision + 1)}>{chinese ? '刷新' : 'Refresh'}</Button>
+                            <Button type="button" variant="secondary" size="small" leftIcon={<CopyDefault size={14} aria-hidden="true" />}
+                                disabled={loadingPrompt || !effectivePrompt} onClick={copyPrompt}>{chinese ? '复制提示词' : 'Copy prompt'}</Button>
+                        </div>
+                    </div>
                 </Panel>
                 <Panel>
                     <details>
