@@ -1,12 +1,12 @@
 /**
- * [INPUT]: Tauri 原生菜单、窗口和 WebView 更新事件。
+ * [INPUT]: Tauri 原生菜单、窗口和 desktop_updates 原生更新状态机。
  * [OUTPUT]: 打开应用、检查更新、退出三个托盘动作。
- * [POS]: 桌面生命周期入口；更新操作交给前端显式安装流程。
+ * [POS]: 桌面生命周期入口；托盘直接检查原生更新，界面只展示结果并等待用户明确安装。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Manager};
 
 pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Open DeepRant / 打开", true, None::<String>)?;
@@ -29,7 +29,12 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
         "show" => crate::show_main(app),
         "check_update" => {
             crate::show_main(app);
-            let _ = app.emit("deeprant://check-update", ());
+            if let Some(window) = app.get_webview_window("main") {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = crate::desktop_updates::check_desktop_updates(window, app).await;
+                });
+            }
         }
         "quit" => app.exit(0),
         _ => {}

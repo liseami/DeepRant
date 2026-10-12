@@ -1,7 +1,7 @@
 # src-tauri/src/
 > L2 | 父级: ../CLAUDE.md
 成员清单
-lib.rs: Tauri 生命周期与 IPC；Ready 先显示主窗口再异步初始化凭据/快捷键，macOS Reopen 激活；主窗口关闭隐藏、浮窗取消，警告日志不记录原文。
+lib.rs: 生命周期与原生业务/系统 IPC 登记，管理更新状态；Ready 先显示再初始化，主窗口隐藏/浮窗取消，警告日志不记录原文。
 desktop_services.rs: Rust 桌面服务边界，按窗口身份限制文本复制、固定外链 ID 和单录屏 URL；前端不获得通用系统或路径插件能力，asset 仍按 Range 读取原资源。
 input_diagnostics.rs: 实时权限与真实注册状态、最近输入的只内存快照；固定系统设置入口不代替用户授权，热键和复制阶段不进磁盘日志。
 main.rs: 桌面程序入口，只调用库运行函数。
@@ -17,9 +17,9 @@ scenes.rs: 游戏语境与地区提示词；模型请求读取设置后组合提
 shortcut.rs: 规范按键、注册及持久化事务；Pressed/Released/过期周期进入诊断，真实绑定状态可查询，录制使旧周期失效。
 shell_helper.rs: 有限选区、焦点与剪贴板恢复；游戏从光标到行首，日常保留原选区，每次短注入交给 native_keyboard，AX 错误保留阶段码。
 inline_translation.rs: 可见占位的原位生命周期；当前占位选区精确核验后粘贴一次，模型失败安全回滚，无法回滚的原文只存内存供用户显式复制。
-game_composer.rs: 独立游戏输入浮窗与 token 会话；重复快捷键只聚焦，提交失败保留草稿，取消释放输入锁。
+game_composer.rs: 游戏浮窗与 token 会话；原生整理单行译文并在请求前后拒绝过期编号，回填失败保留草稿，取消释放输入锁。
 composer_target.rs: 原游戏应用/窗口生命周期与焦点确认；无游戏 hook 或键盘监听，恢复真实焦点后允许写入。
-tray.rs: 托盘菜单与窗口可见性。
+tray.rs: 托盘菜单与窗口可见性，直接调度 Rust 更新检查；不让前端转发系统动作。
 desktop_updates.rs: 更新唯一权威，主窗口意图与单调快照；原生资源/累计进度/后台安装，旧编号与版本拒绝安装，官方签名版本验证后才替换。
 updater_tests.rs: 官方 updater 签名信任边界；校验真实发布字节、篡改拒绝和版本绑定。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

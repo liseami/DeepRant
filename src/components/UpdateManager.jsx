@@ -1,5 +1,5 @@
 /**
- * [INPUT]: Rust 更新快照与用户意图命令、Cromma UI 控件、托盘检查请求。
+ * [INPUT]: Rust 更新快照与用户意图命令、Cromma UI 控件。
  * [OUTPUT]: 渲染可用版本/下载进度/原生错误，按钮仅提交明确安装、关闭或重启意图。
  * [POS]: 常驻更新展示边界；资源、忙态、签名校验与完整状态机全部属于 desktop_updates。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -29,7 +29,6 @@ export default function UpdateManager() {
         register(dispose);
         if (!closed) invoke('get_desktop_update_state').then(receive).catch(showError);
       }).catch(showError);
-    listen('deeprant://check-update', requestUpdateCheck).then(register).catch(showError);
     return () => { closed = true; disposers.forEach(dispose => dispose()); };
   }, []);
 

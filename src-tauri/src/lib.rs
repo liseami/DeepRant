@@ -9,6 +9,7 @@ pub mod ai_translator;
 mod composer_target;
 pub mod credentials;
 mod desktop_services;
+mod desktop_updates;
 pub mod game_composer;
 mod inline_translation;
 pub mod input_diagnostics;
@@ -264,6 +265,7 @@ pub(crate) fn show_main(app: &tauri::AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        .manage(desktop_updates::DesktopUpdates::default())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             show_main(app)
         }))
@@ -304,6 +306,11 @@ pub fn run() {
             desktop_services::copy_plain_text,
             desktop_services::open_external_link,
             desktop_services::get_demo_video_url,
+            desktop_updates::get_desktop_update_state,
+            desktop_updates::check_desktop_updates,
+            desktop_updates::install_desktop_update,
+            desktop_updates::dismiss_desktop_update,
+            desktop_updates::restart_after_desktop_update,
             copy_input_recovery,
             test_model_connection,
             translate_text,
@@ -319,6 +326,7 @@ pub fn run() {
             add_phrase,
             delete_phrase,
             game_composer::get_composer_session,
+            game_composer::translate_composer,
             game_composer::commit_composer,
             game_composer::cancel_composer
         ])

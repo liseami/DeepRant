@@ -67,8 +67,7 @@ impl UpdateSession {
     }
 
     fn require_selection(&self, update_id: u64, version: &str) -> Result<(), String> {
-        if self.snapshot.update_id != update_id
-            || self.snapshot.version.as_deref() != Some(version)
+        if self.snapshot.update_id != update_id || self.snapshot.version.as_deref() != Some(version)
         {
             return Err("更新选项已过期，请使用当前显示的版本".into());
         }
@@ -107,7 +106,11 @@ pub async fn check_desktop_updates(
         if session.busy() {
             return Ok(session.snapshot.clone());
         }
-        let update_id = session.snapshot.update_id.checked_add(1).ok_or("更新编号已耗尽")?;
+        let update_id = session
+            .snapshot
+            .update_id
+            .checked_add(1)
+            .ok_or("更新编号已耗尽")?;
         let revision = session.snapshot.revision;
         // -------- 重查释放原生资源，不进入 WebView resource table --------
         session.update = None;
@@ -140,7 +143,11 @@ pub async fn check_desktop_updates(
     let mut session = state.inner.lock().map_err(|_| "更新状态不可用")?;
     match result {
         Ok(update) => {
-            session.snapshot.phase = if update.is_some() { Phase::Available } else { Phase::Latest };
+            session.snapshot.phase = if update.is_some() {
+                Phase::Available
+            } else {
+                Phase::Latest
+            };
             session.snapshot.version = update.as_ref().map(|next| next.version.clone());
             session.snapshot.body = update.as_ref().and_then(|next| next.body.clone());
             session.update = update;
@@ -171,7 +178,10 @@ pub async fn install_desktop_update(
         if session.snapshot.phase != Phase::Available {
             return Err("当前更新不可安装，请等待当前任务完成".into());
         }
-        let update = session.update.as_ref().ok_or("更新资源已释放，请重新检查")?;
+        let update = session
+            .update
+            .as_ref()
+            .ok_or("更新资源已释放，请重新检查")?;
         if update.version != version {
             return Err("更新资源与显示版本不一致，请重新检查".into());
         }
@@ -186,24 +196,30 @@ pub async fn install_desktop_update(
     };
 
     // -------- 官方 download 先核验签名与版本；仅验证后的字节能进入 install --------
-    let bytes = update.download(
-        |length, total| {
-            let state = app.state::<DesktopUpdates>();
-            if let Ok(mut session) = state.inner.lock() {
-                session.snapshot.downloaded_bytes = session.snapshot.downloaded_bytes.saturating_add(length as u64);
-                session.snapshot.total_bytes = total;
-                let percent = total.filter(|total| *total > 0).map(|total| {
-                    ((u128::from(session.snapshot.downloaded_bytes) * 100 / u128::from(total)).min(100)) as u8
-                });
-                // 只推送百分比变化；未知长度仍由 Rust 累计真实字节。
-                if session.snapshot.percent != percent {
-                    session.snapshot.percent = percent;
-                    session.publish(&app);
-                }
-            };
-        },
-        || {},
-    ).await;
+    let bytes = update
+        .download(
+            |length, total| {
+                let state = app.state::<DesktopUpdates>();
+                if let Ok(mut session) = state.inner.lock() {
+                    session.snapshot.downloaded_bytes = session
+                        .snapshot
+                        .downloaded_bytes
+                        .saturating_add(length as u64);
+                    session.snapshot.total_bytes = total;
+                    let percent = total.filter(|total| *total > 0).map(|total| {
+                        ((u128::from(session.snapshot.downloaded_bytes) * 100 / u128::from(total))
+                            .min(100)) as u8
+                    });
+                    // 只推送百分比变化；未知长度仍由 Rust 累计真实字节。
+                    if session.snapshot.percent != percent {
+                        session.snapshot.percent = percent;
+                        session.publish(&app);
+                    }
+                };
+            },
+            || {},
+        )
+        .await;
 
     let result = match bytes {
         Ok(bytes) => {

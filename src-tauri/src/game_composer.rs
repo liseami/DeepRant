@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 composer_target 的原应用身份与焦点恢复、shell_helper 的输入锁与主线程键盘边界、Tauri 独立 WebView
- * [OUTPUT]: 提供游戏输入浮窗打开、session 查询、提交与取消 IPC；deeprant://composer-open 只通知对应浮窗
+ * [OUTPUT]: 游戏输入浮窗打开、会话查询/翻译/提交/取消 IPC；单行规范与过期会话拒绝由原生执行
  * [POS]: 会话持有原目标与输入锁；目标可跨键盘主线程派发复核，重复热键不更换目标，失败保留草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -182,6 +182,43 @@ fn validate_text(text: &str) -> Result<()> {
     Ok(())
 }
 
+fn normalized_translation(text: &str) -> Result<String> {
+    let text = text
+        .split(['\r', '\n', '\u{2028}', '\u{2029}'])
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    validate_text(&text)?;
+    Ok(text)
+}
+
+fn require_active_session(id: u64) -> Result<()> {
+    let state = SESSION.lock().map_err(|_| anyhow!("游戏输入会话被中断"))?;
+    if !matches!(&*state, State::Active(session) if session.id == id) {
+        bail!("游戏输入会话已过期，请使用当前浮窗重新翻译");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn translate_composer(
+    window: WebviewWindow,
+    session_id: u64,
+    text: String,
+) -> Result<String, String> {
+    validate_window(&window).map_err(|error| error.to_string())?;
+    require_active_session(session_id).map_err(|error| error.to_string())?;
+    if text.len() > MAX_COMPOSE_BYTES {
+        return Err("游戏原文不能超过 16 KiB".into());
+    }
+    let translated = crate::ai_translator::translate_text(window.app_handle(), &text)
+        .await
+        .map_err(|error| error.to_string())?;
+    require_active_session(session_id).map_err(|error| error.to_string())?;
+    normalized_translation(&translated).map_err(|error| error.to_string())
+}
+
 fn finish(app: &AppHandle, session_id: u64, text: Option<String>) -> Result<()> {
     if let Some(text) = &text {
         validate_text(text)?;
@@ -301,6 +338,11 @@ mod tests {
             assert!(validate_text(invalid).is_err());
         }
         assert!(validate_text("你好 team — go mid").is_ok());
+        assert_eq!(
+            normalized_translation(" 你好\r\n\n team 🙂 \u{2028} go mid ").unwrap(),
+            "你好 team 🙂 go mid"
+        );
+        assert!(normalized_translation("text\0").is_err());
         assert!(validate_text(&"x".repeat(MAX_COMPOSE_BYTES + 1)).is_err());
     }
 }

@@ -62,8 +62,8 @@ function ComposerContent() {
     const id = session;
     setBusy('translate'); setError(''); setResult(''); setCopied(false);
     try {
-      const translated = await invoke('translate_text', { text: source });
-      if (sessions.current.owns(id)) setResult(translated.replace(/\s*[\r\n]+\s*/g, ' ').trim());
+      const translated = await invoke('translate_composer', { sessionId: id, text: source });
+      if (sessions.current.owns(id)) setResult(translated);
     } catch (failure) { showFailure(failure, id); }
     finally { if (sessions.current.owns(id)) setBusy(''); }
   }
