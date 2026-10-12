@@ -1,20 +1,17 @@
 /**
- * [INPUT]: 依赖 StoreProvider 的公开模型设置、供应商预设和 Rust 凭据 / 测连命令
- * [OUTPUT]: 提供原双卡模型选择、个人 Key / 协议 / 地址编辑与保存测连
- * [POS]: 模型配置入口；保留游戏软件的原卡片界面，凭据只在本地草稿短暂存在
+ * [INPUT]: 依赖 cromma-ui / Pika、StoreProvider 公开模型设置、供应商预设和 Rust 凭据 / 测连命令
+ * [OUTPUT]: 提供模型选择 / API 配置双面板、个人 Key 编辑与保存测连
+ * [POS]: 游戏翻译的模型配置入口；统一消费 CCBaga 同源控件，凭据只在本地草稿短暂存在
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { motion } from 'framer-motion';
-import { Server, Crown, Sparkles, Cube } from '../icons';
 import { useState, useEffect } from 'react';
+import { Panel, PanelHeader, Button, Input, Select, SidebarButton, motion, MOTION } from 'cromma-ui';
+import { Server, CrownWinnerKing, ShieldCheck, CheckTickCircle, Refresh } from 'cromma-ui/pika';
 import { invoke } from '@tauri-apps/api/core';
 import { useStore } from '../components/StoreProvider';
 import { MODELS } from '../data/models';
 import { showSuccess, showError } from '../utils/toast';
-
-const cardClassName = 'flex flex-col bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] backdrop-blur-sm';
-const inputClassName = 'w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function Settings() {
     const { settings, updateSettings, runCommand, t, locale } = useStore();
@@ -66,84 +63,67 @@ export default function Settings() {
     }
 
     return (
-        <div className="h-full flex flex-col gap-6">
-            <motion.div className={`w-full ${cardClassName}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">{chinese ? 'AI模型设置' : 'AI model settings'}</h1>
-                <p className="text-zinc-600 dark:text-zinc-400">{chinese ? '管理您的API配置和模型信息。' : 'Manage your API configuration and AI models.'}</p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <motion.div className={cardClassName} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="flex items-center gap-3 text-sm text-zinc-500 mb-6">
-                        <Crown className="w-5 h-5 stroke-zinc-500" />
-                        {chinese ? '模型选择' : 'Model selection'}
-                    </div>
-                    <div className="space-y-3">
+        <section className="min-w-0">
+            <header className="workspace-title">
+                <h1>{chinese ? 'AI模型设置' : 'AI model settings'}</h1>
+                <p className="mt-2 text-sm text-muted-foreground">{chinese ? '管理您的API配置和模型信息。' : 'Manage your API configuration and AI models.'}</p>
+            </header>
+            <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={MOTION.base}>
+                <Panel>
+                    <PanelHeader title={<span className="flex items-center gap-2"><CrownWinnerKing size={18} aria-hidden="true" />{chinese ? '模型选择' : 'Model selection'}</span>} />
+                    <div className="space-y-1.5 p-3">
                         {Object.entries(MODELS).map(([id, preset]) => (
-                            <button key={id} type="button" disabled={Boolean(busy)} aria-pressed={draft.model_type === id}
-                                onClick={() => selectModel(id)}
-                                className="w-full flex items-center justify-between gap-3 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors disabled:opacity-50">
-                                <div className="flex items-center gap-3 flex-wrap text-left">
-                                    <span className="text-sm text-zinc-700 dark:text-zinc-300">{id === 'custom' ? (chinese ? '自定义模型' : 'Custom model') : preset.name}</span>
-                                    {preset.model_name && <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md">
-                                        <Cube className="w-3.5 h-3.5 stroke-zinc-500" />
-                                        <span className="text-xs text-zinc-500">{preset.model_name}</span>
-                                    </div>}
-                                    {id.includes('deepseek') && <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                                        <Sparkles className="w-3.5 h-3.5 stroke-blue-500" />
-                                        <span className="text-xs text-blue-500">{chinese ? 'DeepSeek 官方' : 'Official DeepSeek'}</span>
-                                    </div>}
-                                </div>
-                                <span className={`w-4 h-4 shrink-0 rounded-full border transition-all ${draft.model_type === id
-                                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.1)]'
-                                    : 'border-zinc-300 dark:border-zinc-600'}`} />
-                            </button>
+                            <SidebarButton key={id} disabled={Boolean(busy)} active={draft.model_type === id} aria-pressed={draft.model_type === id}
+                                onClick={() => selectModel(id)} className="w-full gap-3 p-3">
+                                <Server size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+                                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span className="text-base font-medium">{id === 'custom' ? (chinese ? '自定义模型' : 'Custom model') : preset.name}</span>
+                                    <span className="truncate text-sm text-muted-foreground font-mono">{preset.model_name || (chinese ? '填写自己的模型配置' : 'Use your own configuration')}</span>
+                                </span>
+                                {draft.model_type === id && <CheckTickCircle size={18} aria-hidden="true" className="shrink-0" />}
+                            </SidebarButton>
                         ))}
                     </div>
-                </motion.div>
-
-                <motion.div className={cardClassName} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                    <div className="flex items-center gap-3 text-sm text-zinc-500 mb-6">
-                        <Server className="w-5 h-5 stroke-zinc-500" />
-                        {chinese ? 'API配置' : 'API configuration'}
-                    </div>
-                    <form onSubmit={event => { event.preventDefault(); save(); }}>
+                </Panel>
+                <Panel>
+                    <PanelHeader title={<span className="flex items-center gap-2"><Server size={18} aria-hidden="true" />{chinese ? 'API配置' : 'API configuration'}</span>} />
+                    <form onSubmit={event => { event.preventDefault(); save(); }} className="p-4">
                         <fieldset disabled={Boolean(busy)} className="space-y-4">
-                            {!isLocal && <div>
-                                <label htmlFor="model-key" className="block text-sm text-zinc-500 mb-2">API Key</label>
-                                <input id="model-key" type="password" value={key} autoComplete="off" spellCheck="false" className={inputClassName}
+                            {!isLocal && <div className="space-y-2">
+                                <label htmlFor="model-key" className="block text-sm font-medium">API Key</label>
+                                <Input id="model-key" type="password" value={key} size="medium" autoComplete="off" spellCheck="false"
                                     onChange={event => setKey(event.target.value)} placeholder={t('keyPlaceholder')} />
-                                <p className="mt-2 text-xs text-zinc-400">{t(hasKey ? 'keySaved' : 'keyMissing')}</p>
+                                <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><ShieldCheck size={14} aria-hidden="true" />{t(hasKey ? 'keySaved' : 'keyMissing')}</p>
                             </div>}
-                            <div>
-                                <label htmlFor="model-url" className="block text-sm text-zinc-500 mb-2">Base URL</label>
-                                <input id="model-url" type="url" required value={draft.api_url || ''} spellCheck="false" className={inputClassName}
+                            <div className="space-y-2">
+                                <label htmlFor="model-url" className="block text-sm font-medium">Base URL</label>
+                                <Input id="model-url" type="url" required value={draft.api_url || ''} size="medium" spellCheck="false"
                                     onChange={event => change('api_url', event.target.value)} placeholder="https://api.deepseek.com" />
-                                <p className="mt-2 text-xs text-zinc-400">{t('baseUrlHelp')}</p>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{t('baseUrlHelp')}</p>
                             </div>
-                            <div>
-                                <label htmlFor="model-name" className="block text-sm text-zinc-500 mb-2">Model Name</label>
-                                <input id="model-name" required value={draft.model_name || ''} spellCheck="false" className={inputClassName}
+                            <div className="space-y-2">
+                                <label htmlFor="model-name" className="block text-sm font-medium">Model Name</label>
+                                <Input id="model-name" required value={draft.model_name || ''} size="medium" spellCheck="false"
                                     onChange={event => change('model_name', event.target.value)} placeholder="deepseek-flash" />
                             </div>
-                            <div>
-                                <label htmlFor="model-protocol" className="block text-sm text-zinc-500 mb-2">{t('protocol')}</label>
-                                <select id="model-protocol" value={draft.protocol || 'openai'} className={inputClassName}
-                                    onChange={event => change('protocol', event.target.value)}>
-                                    <option value="openai">OpenAI compatible</option>
-                                    <option value="anthropic">Anthropic Messages</option>
-                                </select>
+                            <div className="space-y-2">
+                                <label htmlFor="model-protocol" className="block text-sm font-medium">{t('protocol')}</label>
+                                <Select id="model-protocol" aria-label={t('protocol')} size="medium" value={draft.protocol || 'openai'} disabled={Boolean(busy)}
+                                    onValueChange={value => change('protocol', value)} items={[
+                                        { value: 'openai', label: 'OpenAI compatible' },
+                                        { value: 'anthropic', label: 'Anthropic Messages' },
+                                    ]} />
                             </div>
-                            <p className="text-xs text-zinc-400 leading-relaxed">{t(isLocal ? 'localKeyHelp' : 'keyHelp')}</p>
-                            <div className="pt-2 flex items-center gap-2 flex-wrap">
-                                <button type="submit" className="px-3 py-1.5 text-xs text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50">{t(busy === 'saving' ? 'saving' : 'save')}</button>
-                                <button type="button" onClick={() => save(true)} className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50">{t(busy === 'testing' ? 'testing' : 'testConnection')}</button>
-                                {!isLocal && hasKey && <button type="button" onClick={clearKey} className="px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">{t('clearKey')}</button>}
+                            <p className="text-sm text-muted-foreground leading-relaxed">{t(isLocal ? 'localKeyHelp' : 'keyHelp')}</p>
+                            <div className="flex items-center gap-2 flex-wrap pt-2">
+                                <Button type="submit" variant="ink" size="small" loading={busy === 'saving'} disabled={Boolean(busy)}>{t(busy === 'saving' ? 'saving' : 'save')}</Button>
+                                <Button type="button" variant="secondary" size="small" leftIcon={<Refresh size={14} aria-hidden="true" />} loading={busy === 'testing'} disabled={Boolean(busy)} onClick={() => save(true)}>{t(busy === 'testing' ? 'testing' : 'testConnection')}</Button>
+                                {!isLocal && hasKey && <Button type="button" variant="ghost" size="small" disabled={Boolean(busy)} onClick={clearKey}>{t('clearKey')}</Button>}
                             </div>
                         </fieldset>
                     </form>
-                </motion.div>
-            </div>
-        </div>
+                </Panel>
+            </motion.div>
+        </section>
     );
 }

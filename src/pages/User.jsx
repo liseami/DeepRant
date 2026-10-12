@@ -1,19 +1,24 @@
 /**
- * [INPUT]: 依赖 StoreProvider 的界面语言，不访问账号或认证服务
+ * [INPUT]: 依赖 cromma-ui / Pika 与 StoreProvider 界面语言，不访问认证服务
  * [OUTPUT]: 提供原用户信息入口的未登录说明
- * [POS]: 保留原隐藏账号页位置；原登录从未启用，游戏内翻译无需账号
+ * [POS]: 保留隐藏账号页位置；原登录从未启用，游戏内翻译无需账号
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+import { Panel, PanelHeader } from 'cromma-ui';
+import { UserRectangle } from 'cromma-ui/pika';
 import { useStore } from '../components/StoreProvider';
 
 export default function User() {
     const { locale } = useStore();
     const chinese = locale === 'zh';
     return (
-        <div>
-            <h2 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">{chinese ? '用户信息' : 'User information'}</h2>
-            <p className="text-gray-600 dark:text-zinc-400">{chinese ? '当前未登录。使用自己的 API Key 即可进行游戏内翻译，无需注册账号。' : 'You are not signed in. Use your own API key for in-game translation; no account is required.'}</p>
-        </div>
+        <section className="min-w-0">
+            <header className="workspace-title"><h1>{chinese ? '用户信息' : 'User information'}</h1></header>
+            <Panel>
+                <PanelHeader title={<span className="flex items-center gap-2"><UserRectangle size={18} aria-hidden="true" />{chinese ? '未登录' : 'Not signed in'}</span>} />
+                <p className="p-4 text-base text-muted-foreground leading-relaxed">{chinese ? '使用自己的 API Key 即可进行游戏内翻译，无需注册账号。' : 'Use your own API key for in-game translation; no account is required.'}</p>
+            </Panel>
+        </section>
     );
 }
