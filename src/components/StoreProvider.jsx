@@ -29,8 +29,9 @@ export function StoreProvider({ children }) {
       const next = result && typeof result === 'object' && 'translation_from' in result
         ? result
         : await invoke('get_settings');
-      setSettings(publicSettings(next));
-      return result;
+      const visible = publicSettings(next);
+      setSettings(visible);
+      return visible;
     });
     queue.current = operation.catch(() => {});
     return operation;

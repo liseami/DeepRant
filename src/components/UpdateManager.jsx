@@ -35,7 +35,7 @@ export default function UpdateManager() {
     running.current = true;
     setStatus('checking');
     try {
-      if (resource.current) await resource.current.close();
+      if (resource.current) await resource.current.close().catch(showError);
       resource.current = null;
       setUpdate(null);
       const next = await check();
