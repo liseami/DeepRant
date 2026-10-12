@@ -4,7 +4,6 @@
  * [POS]: 唯一接触明文凭据的持久化边界；store 负责迁移，模型管道按端点读取
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-
 use anyhow::{anyhow, Result};
 use keyring::{Entry, Error};
 use std::sync::Mutex;

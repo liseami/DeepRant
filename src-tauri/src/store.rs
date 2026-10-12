@@ -4,7 +4,6 @@
  * [POS]: 设置的唯一写边界；WebView 不持久化数据，Key 不进入序列化快照，快捷键事务只替换其职责字段
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-
 use anyhow::{anyhow, bail, Result};
 use reqwest::Url;
 use serde_json::{json, Value};
@@ -47,10 +46,18 @@ pub fn model_preset(provider: &str) -> Option<ModelConfig> {
         "deepseek" => ("https://api.deepseek.com", "deepseek-flash", "openai"),
         "deepseek-pro" | "deepseek-R1" => ("https://api.deepseek.com", "deepseek-v4-pro", "openai"),
         "openai" => ("https://api.openai.com/v1", "gpt-4o-mini", "openai"),
-        "anthropic" => ("https://api.anthropic.com/v1", "claude-haiku-5-5", "anthropic"),
+        "anthropic" => (
+            "https://api.anthropic.com/v1",
+            "claude-haiku-5-5",
+            "anthropic",
+        ),
         "ollama" => ("http://localhost:11434/v1", "qwen3:8b", "openai"),
         "stepfun" => ("https://api.stepfun.com/v1", "step-2-16k", "openai"),
-        "siliconflow" => ("https://api.siliconflow.cn/v1", "deepseek-ai/DeepSeek-V3.2", "openai"),
+        "siliconflow" => (
+            "https://api.siliconflow.cn/v1",
+            "deepseek-ai/DeepSeek-V3.2",
+            "openai",
+        ),
         "custom" => return None,
         _ => return None,
     };
@@ -69,25 +76,40 @@ pub fn normalize_api_url(raw: &str, protocol: &str) -> Result<String> {
     if raw.len() > 2048 {
         bail!("API 地址过长，请填写服务端点");
     }
-    let mut url = Url::parse(raw.trim()).map_err(|_| anyhow!("API 地址无效，请填写完整 http(s) 地址"))?;
+    let mut url =
+        Url::parse(raw.trim()).map_err(|_| anyhow!("API 地址无效，请填写完整 http(s) 地址"))?;
     if !matches!(url.scheme(), "https" | "http") || url.host_str().is_none() {
         bail!("API 地址必须使用 http 或 https");
     }
-    if !url.username().is_empty() || url.password().is_some() || url.query().is_some() || url.fragment().is_some() {
+    if !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
         bail!("API 地址不能包含用户名、密码、查询参数或片段；Key 请单独保存");
     }
     if url.scheme() == "http" && !is_loopback(&url) {
         bail!("远程 API 请使用 HTTPS；本地服务可使用 localhost 或回环地址");
     }
     let path = url.path().trim_end_matches('/');
-    if (protocol == "openai" && path.ends_with("/messages")) || (protocol == "anthropic" && path.ends_with("/chat/completions")) {
+    if (protocol == "openai" && path.ends_with("/messages"))
+        || (protocol == "anthropic" && path.ends_with("/chat/completions"))
+    {
         bail!("API 端点与协议不匹配，请选择对应的 OpenAI 或 Anthropic 协议");
     }
-    let endpoint = if protocol == "anthropic" { "/messages" } else { "/chat/completions" };
+    let endpoint = if protocol == "anthropic" {
+        "/messages"
+    } else {
+        "/chat/completions"
+    };
     let path = if path.ends_with(endpoint) {
         path.to_string()
     } else if path.is_empty() {
-        let prefix = if protocol == "openai" && url.host_str() == Some("api.deepseek.com") { "" } else { "/v1" };
+        let prefix = if protocol == "openai" && url.host_str() == Some("api.deepseek.com") {
+            ""
+        } else {
+            "/v1"
+        };
         format!("{prefix}{endpoint}")
     } else if protocol == "anthropic" && path.ends_with("/anthropic") {
         format!("{path}/v1{endpoint}")
@@ -101,7 +123,10 @@ pub fn normalize_api_url(raw: &str, protocol: &str) -> Result<String> {
 pub fn is_loopback(url: &Url) -> bool {
     let host = url.host_str().unwrap_or_default().trim_matches(['[', ']']);
     host.eq_ignore_ascii_case("localhost")
-        || host.parse::<std::net::IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+        || host
+            .parse::<std::net::IpAddr>()
+            .map(|ip| ip.is_loopback())
+            .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -114,7 +139,9 @@ pub struct Phrase {
     pub enabled: bool,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -139,7 +166,9 @@ impl HotkeyConfig {
 }
 
 pub fn display_key(key: &str) -> String {
-    if key == "NumpadEnter" { return "Num↵".to_string(); }
+    if key == "NumpadEnter" {
+        return "Num↵".to_string();
+    }
     if let Some(rest) = key.strip_prefix("Key") {
         return rest.to_string();
     }
@@ -237,12 +266,22 @@ pub fn validate_settings(settings: &AppSettings) -> Result<()> {
     if settings.model_type != "custom" && model_preset(&settings.model_type).is_none() {
         bail!("不支持的模型供应商，请选择预设或自定义模型");
     }
-    normalize_api_url(&settings.custom_model.api_url, &settings.custom_model.protocol)?;
-    if settings.custom_model.model_name.trim().is_empty() || settings.custom_model.model_name.len() > 256 {
+    normalize_api_url(
+        &settings.custom_model.api_url,
+        &settings.custom_model.protocol,
+    )?;
+    if settings.custom_model.model_name.trim().is_empty()
+        || settings.custom_model.model_name.len() > 256
+    {
         bail!("模型名称不能为空且不能超过 256 字节");
     }
     for language in [&settings.translation_from, &settings.translation_to] {
-        if language.is_empty() || language.len() > 32 || !language.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {
+        if language.is_empty()
+            || language.len() > 32
+            || !language
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        {
             bail!("翻译语言代码无效，请重新选择语言");
         }
     }
@@ -252,10 +291,17 @@ pub fn validate_settings(settings: &AppSettings) -> Result<()> {
     if !matches!(settings.translation_mode.as_str(), "toxic" | "pro" | "auto") {
         bail!("翻译风格无效，请重新选择");
     }
-    if settings.game_scene != "custom" && !crate::scenes::SCENES.iter().any(|scene| scene.id == settings.game_scene) {
+    if settings.game_scene != "custom"
+        && !crate::scenes::SCENES
+            .iter()
+            .any(|scene| scene.id == settings.game_scene)
+    {
         bail!("游戏场景无效，请选择预设或自定义场景");
     }
-    if settings.custom_scene_name.len() > 256 || settings.custom_scene_prompt.len() > MAX_TEXT_BYTES || settings.custom_glossary.len() > MAX_TEXT_BYTES {
+    if settings.custom_scene_name.len() > 256
+        || settings.custom_scene_prompt.len() > MAX_TEXT_BYTES
+        || settings.custom_glossary.len() > MAX_TEXT_BYTES
+    {
         bail!("自定义场景名称或词库过长，请缩短后保存");
     }
     if settings.phrases.len() > 100 {
@@ -283,13 +329,17 @@ fn serialized_settings(settings: &AppSettings) -> Value {
 
 fn save_unlocked(app: &AppHandle, settings: &AppSettings) -> Result<()> {
     validate_settings(settings)?;
-    let store = app.store(STORE_FILENAME).map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
+    let store = app
+        .store(STORE_FILENAME)
+        .map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
     let previous = store.get("settings");
     store.set("settings", serialized_settings(settings));
     if store.save().is_err() {
         match previous {
             Some(value) => store.set("settings", value),
-            None => { store.delete("settings"); }
+            None => {
+                store.delete("settings");
+            }
         }
         bail!("设置保存失败，请检查磁盘空间与应用数据目录权限；原设置已保留");
     }
@@ -297,26 +347,50 @@ fn save_unlocked(app: &AppHandle, settings: &AppSettings) -> Result<()> {
 }
 
 fn refresh_key_state(settings: &mut AppSettings) -> Result<()> {
-    settings.custom_model.has_api_key = crate::credentials::read(
+    let key = crate::credentials::read(
         &settings.custom_model.api_url,
         &settings.custom_model.protocol,
-    )?.is_some_and(|key| !key.trim().is_empty());
+    );
+    let local = Url::parse(&settings.custom_model.api_url)
+        .map(|url| is_loopback(&url))
+        .unwrap_or(false);
+    settings.custom_model.has_api_key = match key {
+        Ok(key) => key.is_some_and(|key| !key.trim().is_empty()),
+        // 无 Key 的本地 Ollama 不依赖用户是否启用 Secret Service。
+        Err(_) if local => false,
+        Err(error) => return Err(error),
+    };
     Ok(())
 }
 
 fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
-    let store = app.store(STORE_FILENAME).map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
+    let store = app
+        .store(STORE_FILENAME)
+        .map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
     let existing = store.get("settings");
     let mut raw = existing.clone().unwrap_or_else(|| json!({}));
-    let legacy_key = raw.get_mut("custom_model").and_then(Value::as_object_mut).and_then(|model| model.remove("auth"));
-    if legacy_key.as_ref().is_some_and(|key| !key.is_string() && !key.is_null()) {
+    let legacy_key = raw
+        .get_mut("custom_model")
+        .and_then(Value::as_object_mut)
+        .and_then(|model| model.remove("auth"));
+    if legacy_key
+        .as_ref()
+        .is_some_and(|key| !key.is_string() && !key.is_null())
+    {
         bail!("旧 API Key 格式无效，原设置已保留，请先备份 store.json 后修复凭据字段");
     }
     let mut settings: AppSettings = serde_json::from_value(raw)
         .map_err(|_| anyhow!("设置文件格式无效，请备份 store.json 后重新配置"))?;
-    settings.custom_model.api_url = normalize_api_url(&settings.custom_model.api_url, &settings.custom_model.protocol)?;
+    settings.custom_model.api_url = normalize_api_url(
+        &settings.custom_model.api_url,
+        &settings.custom_model.protocol,
+    )?;
     // 旧 auth 属于旧自定义端点，不能随着内置供应商选择被迁移到另一家。
-    if let Some(secret) = legacy_key.as_ref().and_then(Value::as_str).filter(|key| !key.trim().is_empty()) {
+    if let Some(secret) = legacy_key
+        .as_ref()
+        .and_then(Value::as_str)
+        .filter(|key| !key.trim().is_empty())
+    {
         let endpoint = &settings.custom_model.api_url;
         let protocol = &settings.custom_model.protocol;
         crate::credentials::write(endpoint, protocol, secret.trim())?;
@@ -330,8 +404,22 @@ fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
             settings.custom_model = preset;
         }
     }
-    if settings.custom_model.api_url.starts_with("https://api.deepseek.com/") && matches!(settings.custom_model.model_name.as_str(), "deepseek-chat" | "deepseek-reasoner") {
-        settings.custom_model.model_name = if settings.custom_model.model_name == "deepseek-reasoner" { "deepseek-v4-pro" } else { "deepseek-flash" }.into();
+    if settings
+        .custom_model
+        .api_url
+        .starts_with("https://api.deepseek.com/")
+        && matches!(
+            settings.custom_model.model_name.as_str(),
+            "deepseek-chat" | "deepseek-reasoner"
+        )
+    {
+        settings.custom_model.model_name =
+            if settings.custom_model.model_name == "deepseek-reasoner" {
+                "deepseek-v4-pro"
+            } else {
+                "deepseek-flash"
+            }
+            .into();
     }
     validate_settings(&settings)?;
     let sanitized = serialized_settings(&settings);
@@ -347,7 +435,9 @@ pub fn initialize_settings(app: &AppHandle) -> Result<()> {
 }
 
 pub fn get_settings(app: &AppHandle) -> Result<AppSettings> {
-    let _guard = SETTINGS_LOCK.lock().map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
     load_unlocked(app)
 }
 
@@ -356,66 +446,106 @@ pub fn get_settings(app: &AppHandle) -> Result<AppSettings> {
 // ---------------------------------------------------------------------------
 
 fn apply_patch(current: &AppSettings, patch: Value) -> Result<(AppSettings, Option<String>)> {
-    let object = patch.as_object().ok_or_else(|| anyhow!("设置更新必须是对象"))?;
+    let object = patch
+        .as_object()
+        .ok_or_else(|| anyhow!("设置更新必须是对象"))?;
     let mut value = serialized_settings(current);
     let mut secret = None;
     if object.contains_key("model_type") && !object.contains_key("custom_model") {
         if let Some(provider) = object.get("model_type").and_then(Value::as_str) {
             if let Some(preset) = model_preset(provider) {
-                value["custom_model"] = serialized_settings(&AppSettings { custom_model: preset, ..current.clone() })["custom_model"].clone();
+                value["custom_model"] = serialized_settings(&AppSettings {
+                    custom_model: preset,
+                    ..current.clone()
+                })["custom_model"]
+                    .clone();
             }
         }
     }
     for (field, incoming) in object {
         match field.as_str() {
-            "translation_from" | "translation_to" | "game_scene" | "translation_mode" | "daily_mode" | "model_type" | "custom_scene_name" | "custom_scene_prompt" | "custom_glossary" | "ui_language" => {
+            "translation_from"
+            | "translation_to"
+            | "game_scene"
+            | "translation_mode"
+            | "daily_mode"
+            | "model_type"
+            | "custom_scene_name"
+            | "custom_scene_prompt"
+            | "custom_glossary"
+            | "ui_language" => {
                 value[field] = incoming.clone();
             }
             "custom_model" => {
-                let model = incoming.as_object().ok_or_else(|| anyhow!("模型配置必须是对象"))?;
+                let model = incoming
+                    .as_object()
+                    .ok_or_else(|| anyhow!("模型配置必须是对象"))?;
                 for (key, setting) in model {
                     match key.as_str() {
                         "auth" => {
-                            let key = setting.as_str().ok_or_else(|| anyhow!("API Key 必须是文本"))?.trim();
+                            let key = setting
+                                .as_str()
+                                .ok_or_else(|| anyhow!("API Key 必须是文本"))?
+                                .trim();
                             if key.len() > 8192 || key.contains(['\r', '\n']) {
                                 bail!("API Key 格式无效，请填写单行凭据");
                             }
-                            if !key.is_empty() { secret = Some(key.to_string()); }
+                            if !key.is_empty() {
+                                secret = Some(key.to_string());
+                            }
                         }
-                        "api_url" | "model_name" | "protocol" => { value["custom_model"][key] = setting.clone(); }
+                        "api_url" | "model_name" | "protocol" => {
+                            value["custom_model"][key] = setting.clone();
+                        }
                         "has_api_key" => {
-                            if !setting.is_boolean() { bail!("has_api_key 必须是布尔值"); }
+                            if !setting.is_boolean() {
+                                bail!("has_api_key 必须是布尔值");
+                            }
                         }
                         _ => bail!("模型配置含不支持的字段"),
                     }
                 }
             }
-            "trans_hotkey" | "phrases" | "phrases_enabled" => bail!("快捷键与常用语请使用专用命令更新"),
+            "trans_hotkey" | "phrases" | "phrases_enabled" => {
+                bail!("快捷键与常用语请使用专用命令更新")
+            }
             _ => bail!("设置更新含不支持的字段"),
         }
     }
-    let mut next: AppSettings = serde_json::from_value(value).map_err(|_| anyhow!("设置字段类型无效"))?;
-    next.custom_model.api_url = normalize_api_url(&next.custom_model.api_url, &next.custom_model.protocol)?;
+    let mut next: AppSettings =
+        serde_json::from_value(value).map_err(|_| anyhow!("设置字段类型无效"))?;
+    next.custom_model.api_url =
+        normalize_api_url(&next.custom_model.api_url, &next.custom_model.protocol)?;
     next.custom_model.model_name = next.custom_model.model_name.trim().to_string();
     validate_settings(&next)?;
     Ok((next, secret))
 }
 
 pub fn update_settings(app: &AppHandle, patch: Value) -> Result<AppSettings> {
-    let _guard = SETTINGS_LOCK.lock().map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
     let current = load_unlocked(app)?;
     let (mut next, secret) = apply_patch(&current, patch)?;
     let endpoint = &next.custom_model.api_url;
     let protocol = &next.custom_model.protocol;
-    let previous_key = if secret.is_some() { crate::credentials::read(endpoint, protocol)? } else { None };
-    if let Some(key) = &secret { crate::credentials::write(endpoint, protocol, key)?; }
+    let previous_key = if secret.is_some() {
+        crate::credentials::read(endpoint, protocol)?
+    } else {
+        None
+    };
+    if let Some(key) = &secret {
+        crate::credentials::write(endpoint, protocol, key)?;
+    }
     if let Err(error) = save_unlocked(app, &next) {
         if secret.is_some() {
             let rollback = match previous_key {
                 Some(key) => crate::credentials::write(endpoint, protocol, &key),
                 None => crate::credentials::remove(endpoint, protocol),
             };
-            if rollback.is_err() { bail!("设置保存失败，凭据回退也失败；请重新保存所需 Key，旧设置已保留"); }
+            if rollback.is_err() {
+                bail!("设置保存失败，凭据回退也失败；请重新保存所需 Key，旧设置已保留");
+            }
         }
         return Err(error);
     }
@@ -424,16 +554,23 @@ pub fn update_settings(app: &AppHandle, patch: Value) -> Result<AppSettings> {
 }
 
 pub fn clear_api_key(app: &AppHandle) -> Result<AppSettings> {
-    let _guard = SETTINGS_LOCK.lock().map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
     let mut settings = load_unlocked(app)?;
-    crate::credentials::remove(&settings.custom_model.api_url, &settings.custom_model.protocol)?;
+    crate::credentials::remove(
+        &settings.custom_model.api_url,
+        &settings.custom_model.protocol,
+    )?;
     settings.custom_model.has_api_key = false;
     Ok(settings)
 }
 
 /// 快捷键事务专用：仅替换其职责字段，保留其他并发完成的设置更新。
 pub fn replace_settings(app: &AppHandle, settings: &AppSettings) -> Result<()> {
-    let _guard = SETTINGS_LOCK.lock().map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
     let mut latest = load_unlocked(app)?;
     latest.trans_hotkey = settings.trans_hotkey.clone();
     latest.phrases = settings.phrases.clone();
@@ -441,8 +578,13 @@ pub fn replace_settings(app: &AppHandle, settings: &AppSettings) -> Result<()> {
     save_unlocked(app, &latest)
 }
 
-pub fn update_settings_field<T>(app: &AppHandle, update: impl FnOnce(&mut AppSettings) -> T) -> Result<T> {
-    let _guard = SETTINGS_LOCK.lock().map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+pub fn update_settings_field<T>(
+    app: &AppHandle,
+    update: impl FnOnce(&mut AppSettings) -> T,
+) -> Result<T> {
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
     let mut settings = load_unlocked(app)?;
     let result = update(&mut settings);
     save_unlocked(app, &settings)?;
@@ -451,7 +593,11 @@ pub fn update_settings_field<T>(app: &AppHandle, update: impl FnOnce(&mut AppSet
 
 pub fn update_phrase_text(app: &AppHandle, id: i32, phrase: String) -> Result<()> {
     update_settings_field(app, |settings| {
-        let item = settings.phrases.iter_mut().find(|item| item.id == id).ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|item| item.id == id)
+            .ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
         item.phrase = phrase;
         Ok(())
     })?
@@ -459,7 +605,11 @@ pub fn update_phrase_text(app: &AppHandle, id: i32, phrase: String) -> Result<()
 
 pub fn update_phrase_hotkey(app: &AppHandle, id: i32, hotkey: HotkeyConfig) -> Result<()> {
     update_settings_field(app, |settings| {
-        let item = settings.phrases.iter_mut().find(|item| item.id == id).ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|item| item.id == id)
+            .ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
         item.hotkey = hotkey;
         Ok(())
     })?
@@ -467,14 +617,20 @@ pub fn update_phrase_hotkey(app: &AppHandle, id: i32, hotkey: HotkeyConfig) -> R
 
 pub fn set_phrase_enabled(app: &AppHandle, id: i32, enabled: bool) -> Result<()> {
     update_settings_field(app, |settings| {
-        let item = settings.phrases.iter_mut().find(|item| item.id == id).ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|item| item.id == id)
+            .ok_or_else(|| anyhow!("常用语不存在，请刷新后重试"))?;
         item.enabled = enabled;
         Ok(())
     })?
 }
 
 pub fn set_phrases_enabled(app: &AppHandle, enabled: bool) -> Result<()> {
-    update_settings_field(app, |settings| { settings.phrases_enabled = enabled; })
+    update_settings_field(app, |settings| {
+        settings.phrases_enabled = enabled;
+    })
 }
 
 #[cfg(test)]
@@ -487,10 +643,18 @@ mod tests {
         assert!(apply_patch(&current, json!({"trans_hotkey": {}})).is_err());
         assert!(apply_patch(&current, json!({"unknown": true})).is_err());
         assert!(apply_patch(&current, json!({"daily_mode": "yes"})).is_err());
-        let (next, secret) = apply_patch(&current, json!({"custom_model": {"auth": "test-secret"}})).unwrap();
+        let (next, secret) =
+            apply_patch(&current, json!({"custom_model": {"auth": "test-secret"}})).unwrap();
         assert_eq!(secret.as_deref(), Some("test-secret"));
-        assert!(!serialized_settings(&next).to_string().contains("test-secret"));
-        assert!(apply_patch(&current, json!({"custom_model": {"auth": " "}})).unwrap().1.is_none());
+        assert!(!serialized_settings(&next)
+            .to_string()
+            .contains("test-secret"));
+        assert!(
+            apply_patch(&current, json!({"custom_model": {"auth": " "}}))
+                .unwrap()
+                .1
+                .is_none()
+        );
         let defaults: AppSettings = serde_json::from_value(json!({"daily_mode": true})).unwrap();
         assert!(defaults.daily_mode);
         assert_eq!(defaults.custom_model.model_name, "deepseek-flash");
@@ -499,10 +663,26 @@ mod tests {
     #[test]
     fn endpoints_are_idempotent_and_disallow_embedded_credentials() {
         for (input, protocol, expected) in [
-            ("https://api.deepseek.com", "openai", "https://api.deepseek.com/chat/completions"),
-            ("https://example.com/v1/", "openai", "https://example.com/v1/chat/completions"),
-            ("http://localhost:11434", "openai", "http://localhost:11434/v1/chat/completions"),
-            ("https://api.anthropic.com", "anthropic", "https://api.anthropic.com/v1/messages"),
+            (
+                "https://api.deepseek.com",
+                "openai",
+                "https://api.deepseek.com/chat/completions",
+            ),
+            (
+                "https://example.com/v1/",
+                "openai",
+                "https://example.com/v1/chat/completions",
+            ),
+            (
+                "http://localhost:11434",
+                "openai",
+                "http://localhost:11434/v1/chat/completions",
+            ),
+            (
+                "https://api.anthropic.com",
+                "anthropic",
+                "https://api.anthropic.com/v1/messages",
+            ),
         ] {
             assert_eq!(normalize_api_url(input, protocol).unwrap(), expected);
             assert_eq!(normalize_api_url(expected, protocol).unwrap(), expected);
