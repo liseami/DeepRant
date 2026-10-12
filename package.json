@@ -11,7 +11,8 @@
     "clean": "rm -rf src-tauri/target && rm -rf dist",
     "build:mac-arm": "tauri build --target aarch64-apple-darwin",
     "test": "node --test scripts/*.test.mjs",
-    "check": "npm test && npm run build"
+    "check": "npm test && npm run build",
+    "dev:install": "python3 scripts/dev-install.py"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.3",

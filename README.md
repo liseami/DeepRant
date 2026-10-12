@@ -39,6 +39,7 @@ Node 22.12+；仓库锁定 Rust 1.98.1。macOS / Windows 是正式发布目标�
 ```sh
 npm ci
 npm run tauri dev
+npm run dev:install
 npm run check
 cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features custom-protocol -- -D warnings
@@ -51,3 +52,5 @@ release 分支由仓库所有者触发发布，普通 PR 检查不接触签名�
 DeepRant translates and rewrites desktop chat using your own model API key or local Ollama. Switch the interface to English from the sidebar. Choose languages, tone and context on Home, configure and test your model, then use a shortcut in a supported text field or translate manually and copy the result.
 
 macOS requires Accessibility permission. Windows input must run at compatible privilege levels. Games may block copying or simulated input; manual translation remains available. Phrase shortcuts start disabled. Keys stay in the OS credential vault. Only an explicit update installation action installs a signed update. Download the appropriate DMG or current-user Windows installer from GitHub Releases.
+
+本机交付沿用 CCBaga：每次 `npm run dev:install` 都重新构建内嵌前端、临时签名并事务安装到 `/Applications/DeepRant.app`。技术检查由主 Agent 执行，视觉验收由用户完成。
