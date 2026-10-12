@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 cromma-ui / Pika、StoreProvider 界面语言与系统 URL 打开能力
  * [OUTPUT]: 提供同源面板内的开发者介绍、社交链接与课程入口
- * [POS]: About 与 Mana 共用作者信息；模型服务由用户配置，更新统一由 UpdateManager 管理
+ * [POS]: About 的作者信息面板；模型服务由用户配置，更新统一由 UpdateManager 管理
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
