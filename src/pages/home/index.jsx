@@ -1,13 +1,12 @@
 /**
- * [INPUT]: 依赖 Tauri 随包 media 资源的 Range 协议、原演示预览图、Cromma UI 和三个设置卡片
+ * [INPUT]: 依赖 Rust 演示资源 URL 命令与 Tauri Range 协议、原预览图、Cromma UI 和三个设置卡片
  * [OUTPUT]: 提供游戏内翻译主页和可重试的录屏横幅，未播放时立即展示原预览图
  * [POS]: App 常驻首页复用同一播放器；仅当前页、可见窗口与可见视口播放，字节读取留给原生资源协议
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { convertFileSrc, isTauri } from '@tauri-apps/api/core';
-import { resolveResource } from '@tauri-apps/api/path';
+import { invoke } from '@tauri-apps/api/core';
 import { Button, Panel, motion, MOTION } from 'cromma-ui';
 import TranslationDirectionCard from './components/TranslationDirectionCard';
 import GameSceneCard from './components/GameSceneCard';
@@ -25,10 +24,8 @@ export default function Home({ active }) {
   const loadVideo = useCallback(async () => {
     setVideoError(false);
     try {
-      // -------- 原生资源按需读取；Vite 开发服务直接提供源文件，避免嵌入第二份录屏 --------
-      const source = isTauri()
-        ? convertFileSrc(await resolveResource('media/demovideo.mp4'))
-        : '/src/assets/demovideo.mp4';
+      // -------- Rust 只返回原录屏的地址；播放器与既有 Range 缓冲继续复用 --------
+      const source = await invoke('get_demo_video_url');
       if (videoRef.current) setVideoSource(source);
     } catch {
       if (videoRef.current) setVideoError(true);

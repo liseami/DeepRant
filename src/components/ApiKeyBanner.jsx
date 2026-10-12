@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖已加载的模型设置、共享 Key 输入及系统链接打开能力
+ * [INPUT]: 依赖已加载的模型设置、共享 Key 输入及 Rust 固定开放平台链接命令
  * [OUTPUT]: 提供官方 DeepSeek 缺 Key 时的全宽配置横幅，直接保存并前往开放平台
  * [POS]: 应用壳顶部的首次配置入口；仅补齐当前服务凭据，保留所有游戏与模型参数
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Button, Panel } from 'cromma-ui';
 import { ArrowRight, ShieldCheck } from 'cromma-ui/pika';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './StoreProvider';
 import ApiKeyField, { useApiKey } from './ApiKeyField';
 import { showError, showSuccess } from '../utils/toast';
@@ -51,7 +51,7 @@ export default function ApiKeyBanner() {
         <ApiKeyField id="banner-api-key" credential={credential} hasApiKey={false} disabled={saving} compact />
         <Button type="submit" variant="ink" size="medium" disabled={saving || !credential.value.trim()} loading={saving}>{t(saving ? 'saving' : 'saveKey')}</Button>
         <Button type="button" variant="secondary" size="medium" leftIcon={<ArrowRight size={16} aria-hidden="true" />}
-          onClick={() => openUrl('https://platform.deepseek.com/api_keys').catch(showError)}>{t('deepseekPlatform')}</Button>
+          onClick={() => invoke('open_external_link', { id: 'deepseek-platform' }).catch(showError)}>{t('deepseekPlatform')}</Button>
       </form>
     </Panel>
   );

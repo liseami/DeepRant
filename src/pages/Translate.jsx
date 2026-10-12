@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cromma UI / Pika、公开风格与通用提示词、Rust translate_text 和系统剪贴板
+ * [INPUT]: 依赖 Cromma UI / Pika、公开风格与通用提示词、Rust 翻译与复制命令
  * [OUTPUT]: 提供游戏 / 日常共用的三种表达风格、通用提示词和次级辅助翻译
  * [POS]: 表达策略集中编辑，所有输入方式消费同一后端提示词，不在页面自行拼接模型请求
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react';
 import { Panel, PanelHeader, Button, Textarea, SidebarButton, motion, MOTION } from 'cromma-ui';
 import { MegaphoneAnnouncementShout, KeyboardWired, Translate as TranslateIcon, CheckTickCircle, CopyDefault, SendPlaneHorizontal } from 'cromma-ui/pika';
 import { invoke } from '@tauri-apps/api/core';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { useStore } from '../components/StoreProvider';
 import { languageName } from '../data/languages';
 import { showError, showSuccess } from '../utils/toast';
@@ -58,7 +57,7 @@ export default function Translate() {
     }
 
     async function copy() {
-        try { await writeText(result); showSuccess(t('copied')); }
+        try { await invoke('copy_plain_text', { text: result }); showSuccess(t('copied')); }
         catch (failure) { showError(failure); }
     }
 

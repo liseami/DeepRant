@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cromma UI、公开设置、ComposerSession 编号守卫和原生会话；翻译仍走统一 Rust 请求。
+ * [INPUT]: 依赖 Cromma UI、公开设置、ComposerSession 编号守卫和原生会话；翻译、复制与回填走 Rust 命令。
  * [OUTPUT]: 提供热键唤起的游戏输入浮窗，编辑原文、预览译文并确认回填原聊天窗口。
  * [POS]: 禁用复制的游戏使用独立输入工作面；目标窗口和会话归 Rust 所有，前端不自行切换焦点或模拟按键。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -10,7 +10,6 @@ import { Button, Input, Loader, Panel, PanelHeader, Textarea } from 'cromma-ui';
 import { CopyDefault, KeyboardWired, SendPlaneHorizontal, Translate } from 'cromma-ui/pika';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { StoreProvider, useStore } from '../components/StoreProvider';
 import { languageName } from '../data/languages';
 import { ComposerSession } from '../utils/composer-session';
@@ -100,7 +99,7 @@ function ComposerContent() {
   }
 
   async function copy() {
-    try { await writeText(result); setCopied(true); }
+    try { await invoke('copy_plain_text', { text: result }); setCopied(true); }
     catch (failure) { setError(String(failure)); }
   }
 

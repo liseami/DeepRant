@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 cromma-ui / Pika、DeveloperNote、版本命令、统一更新请求与系统 URL 打开能力
+ * [INPUT]: 依赖 Cromma UI / Pika、DeveloperNote、版本命令、更新请求与 Rust 固定发布链接命令
  * [OUTPUT]: 提供游戏产品介绍、作者 / 游戏 / 多语言卡片、版本更新与隐私权限说明
  * [POS]: 关于页保留游戏软件定位；更新交给 UpdateManager，业务页不建立第二条下载流程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -10,7 +10,6 @@ import { Panel, PanelHeader, Button, motion, MOTION } from 'cromma-ui';
 import { KeyboardWired, Globe, Refresh, Share01 } from 'cromma-ui/pika';
 import DeveloperNote from '../components/DeveloperNote';
 import { invoke } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { useStore } from '../components/StoreProvider';
 import { requestUpdateCheck } from '../utils/updater';
 import { showError } from '../utils/toast';
@@ -48,7 +47,7 @@ export default function About() {
                         <PanelHeader title={<span className="flex items-center gap-2"><Globe size={18} aria-hidden="true" />{chinese ? '全球语言支持' : 'Global language support'}</span>} />
                         <div className="flex flex-1 flex-col gap-4 p-4">
                             <p className="text-base text-muted-foreground leading-relaxed">{chinese ? '支持多种语言之间的互译，让来自世界各地的玩家都能无障碍交流。' : 'Translate between languages so players from around the world can communicate.'}</p>
-                            <Button type="button" variant="secondary" size="small" className="self-start mt-auto" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => openUrl('https://github.com/liseami/DeepRant/releases').catch(showError)}>{t('project')}</Button>
+                            <Button type="button" variant="secondary" size="small" className="self-start mt-auto" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => invoke('open_external_link', { id: 'releases' }).catch(showError)}>{t('project')}</Button>
                         </div>
                     </Panel>
                 </div>

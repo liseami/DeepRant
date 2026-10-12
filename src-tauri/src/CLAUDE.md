@@ -2,6 +2,7 @@
 > L2 | 父级: ../CLAUDE.md
 成员清单
 lib.rs: Tauri 生命周期与 IPC；Ready 先显示主窗口再异步初始化凭据/快捷键，macOS Reopen 激活；主窗口关闭隐藏、浮窗取消，警告日志不记录原文。
+desktop_services.rs: Rust 桌面服务边界，按窗口身份限制文本复制、固定外链 ID 和单录屏 URL；前端不获得通用系统或路径插件能力，asset 仍按 Range 读取原资源。
 input_diagnostics.rs: 实时权限与真实注册状态、最近输入的只内存快照；固定系统设置入口不代替用户授权，热键和复制阶段不进磁盘日志。
 main.rs: 桌面程序入口，只调用库运行函数。
 credentials.rs: 系统钥匙串凭据唯一边界，以协议及端点隔离 Key；仅主窗口模型编辑可按服务查看，不进入公开设置或诊断。

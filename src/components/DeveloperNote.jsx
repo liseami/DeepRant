@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 cromma-ui / Pika、StoreProvider 界面语言与系统 URL 打开能力
+ * [INPUT]: 依赖 Cromma UI / Pika、StoreProvider 界面语言与 Rust 固定外链命令
  * [OUTPUT]: 提供同源面板内的开发者介绍、社交链接与课程入口
  * [POS]: About 的作者信息面板；模型服务由用户配置，更新统一由 UpdateManager 管理
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,14 +7,14 @@
 
 import { Panel, PanelHeader, Button } from 'cromma-ui';
 import { UserRectangle, Share01, Notebook } from 'cromma-ui/pika';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './StoreProvider';
 import { showError } from '../utils/toast';
 
 export default function DeveloperNote() {
     const { locale } = useStore();
     const chinese = locale === 'zh';
-    const openLink = url => openUrl(url).catch(showError);
+    const openLink = id => invoke('open_external_link', { id }).catch(showError);
 
     return (
         <Panel className="h-full">
@@ -25,9 +25,9 @@ export default function DeveloperNote() {
                     {chinese ? 'DeepRant 是我的一个实验性项目，主要目的：在国际服游戏交流中保证语言优势。软件免费开源，您可以连接自己的模型与 API Key，模型调用费用和额度由供应商管理。' : 'DeepRant is my experimental project for giving players a language advantage in international game chat. The app is free and open source. Connect your own model and API key; your provider manages API costs and quotas.'}
                 </p>
                 <div className="flex flex-col items-start gap-2 mt-auto">
-                    <Button type="button" variant="secondary" size="small" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => openLink('https://x.com/liseami1')}>{chinese ? '在 X 上关注纯想' : 'Follow Chunxiang on X'}</Button>
-                    <Button type="button" variant="secondary" size="small" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => openLink('https://www.xiaohongshu.com/user/profile/597898e15e87e727f19b1003')}>{chinese ? '在小红书上关注纯想' : 'On Xiaohongshu'}</Button>
-                    <Button type="button" variant="ink" size="small" leftIcon={<Notebook size={14} aria-hidden="true" />} onClick={() => openLink('https://chunxiang.space')}>{chinese ? '纯想0基础全栈开发课程' : "Chunxiang's course"}</Button>
+                    <Button type="button" variant="secondary" size="small" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => openLink('developer-x')}>{chinese ? '在 X 上关注纯想' : 'Follow Chunxiang on X'}</Button>
+                    <Button type="button" variant="secondary" size="small" leftIcon={<Share01 size={14} aria-hidden="true" />} onClick={() => openLink('developer-xiaohongshu')}>{chinese ? '在小红书上关注纯想' : 'On Xiaohongshu'}</Button>
+                    <Button type="button" variant="ink" size="small" leftIcon={<Notebook size={14} aria-hidden="true" />} onClick={() => openLink('developer-course')}>{chinese ? '纯想0基础全栈开发课程' : "Chunxiang's course"}</Button>
                 </div>
             </div>
         </Panel>
