@@ -1,33 +1,20 @@
+/**
+ * [INPUT]: 依赖 react-hot-toast 统一展示桌面命令的反馈
+ * [OUTPUT]: 提供 showSuccess、showError、errorMessage，兼容 Rust 字符串与 JS Error
+ * [POS]: 页面与后台事件的共同错误出口，避免散落控制台报错或未处理 Promise
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import toast from 'react-hot-toast';
 
-const toastStyle = {
-    style: {
-        background: '#ffffff',
-        color: '#18181b', // zinc-900
-        padding: '16px',
-        borderRadius: '16px', // rounded-2xl
-        boxShadow: '0 8px 30px rgb(0,0,0,0.08)',
-        fontSize: '14px',
-        maxWidth: '500px',
-        border: '1px solid #e4e4e7', // zinc-200
-    },
-    duration: 2000,
-    position: 'top-right',
-};
+export function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
-const errorToastStyle = {
-    ...toastStyle,
-    style: {
-        ...toastStyle.style,
-        color: '#ef4444', // red-500
-    },
-    duration: 3000,
-};
+export function showSuccess(message) {
+  toast.success(message, { duration: 2500 });
+}
 
-export const showSuccess = (message) => {
-    toast.success(message, toastStyle);
-};
-
-export const showError = (message) => {
-    toast.error(message, errorToastStyle);
-}; 
+export function showError(error) {
+  toast.error(errorMessage(error), { duration: 6000 });
+}

@@ -1,86 +1,66 @@
 /**
- * [INPUT]: 依赖 @tauri-apps/plugin-store 的 store.json；默认值对齐 Rust AppSettings
- * [OUTPUT]: 提供 settings 与 updateSettings。浅合并写入，不丢未改字段。
- * [POS]: 前端设置的读缓存。常用语与快捷键写路径走 invoke，再回写这里。
+ * [INPUT]: 依赖 Rust get_settings 与设置变更命令、i18n 文案目录
+ * [OUTPUT]: 提供公开设置缓存、串行 runCommand/updateSettings、刷新与文案函数
+ * [POS]: WebView 的单一设置入口；Rust 负责合并与持久化，凭据不进入共享状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import { load } from '@tauri-apps/plugin-store';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { uiText, uiLocale } from '../data/i18n';
 
 const StoreContext = createContext(null);
 
-const DEFAULT_SETTINGS = {
-    translation_from: 'zh',
-    translation_to: 'en',
-    game_scene: 'dota2',
-    translation_mode: 'toxic',
-    daily_mode: false,
-    model_type: 'custom',
-    custom_model: {
-        auth: '',
-        api_url: 'https://api.deepseek.com/v1/chat/completions',
-        model_name: 'deepseek-chat',
-    },
-    phrases: [],
-    phrases_enabled: true,
-    custom_scene_name: '',
-    custom_scene_prompt: '',
-    custom_glossary: '',
-    ui_language: 'zh',
-};
-
-export function StoreProvider({ children }) {
-    const [store, setStore] = useState(null);
-    const [settings, setSettings] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const initStore = async () => {
-            try {
-                const storeInstance = await load('store.json', {
-                    autoSave: 100
-                });
-                setStore(storeInstance);
-                // 获取存储的设置，如果没有则使用默认值
-                const storedSettings = await storeInstance.get('settings');
-                setSettings({ ...DEFAULT_SETTINGS, ...(storedSettings || {}) });
-            } catch (error) {
-                console.error('初始化 store 失败:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        initStore();
-    }, []);
-
-    const updateSettings = async (newSettings) => {
-        if (!store) return;
-        // 合并设置
-        const updatedSettings = { ...DEFAULT_SETTINGS, ...settings, ...newSettings };
-        try {
-            await store.set('settings', updatedSettings);
-            await store.save();
-            const storedSettings = await store.get('settings');
-            if (storedSettings) {
-                setSettings(storedSettings);
-            }
-        } catch (error) {
-            console.error('更新设置失败:', error);
-        }
-    };
-
-    return (
-        <StoreContext.Provider value={{ store, settings, updateSettings, loading }}>
-            {children}
-        </StoreContext.Provider>
-    );
+function publicSettings(value) {
+  const { auth: _secret, ...model } = value.custom_model || {};
+  return { ...value, custom_model: model };
 }
 
-export const useStore = () => {
-    const context = useContext(StoreContext);
-    if (!context) {
-        throw new Error('useStore 必须在 StoreProvider 内部使用');
+export function StoreProvider({ children }) {
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const queue = useRef(Promise.resolve());
+
+  // -------- 所有写入共享队列，后端返回值是唯一的新状态 --------
+  const runCommand = useCallback((command, args = {}) => {
+    const operation = queue.current.then(async () => {
+      const result = await invoke(command, args);
+      const next = result && typeof result === 'object' && 'translation_from' in result
+        ? result
+        : await invoke('get_settings');
+      setSettings(publicSettings(next));
+      return result;
+    });
+    queue.current = operation.catch(() => {});
+    return operation;
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      await runCommand('get_settings');
+      setError('');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setLoading(false);
     }
-    return context;
-}; 
+  }, [runCommand]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const updateSettings = useCallback((patch) => runCommand('update_settings', { patch }), [runCommand]);
+  const locale = uiLocale(settings?.ui_language);
+  const t = (key) => uiText(locale, key);
+
+  return <StoreContext.Provider value={{ settings, loading, error, refresh, updateSettings, runCommand, locale, t }}>
+    {children}
+  </StoreContext.Provider>;
+}
+
+export function useStore() {
+  const context = useContext(StoreContext);
+  if (!context) throw new Error('useStore requires StoreProvider');
+  return context;
+}

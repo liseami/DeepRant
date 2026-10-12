@@ -1,119 +1,29 @@
 /**
- * [INPUT]: 依赖 useStore 的 settings.ui_language 与 I18N 词典
- * [OUTPUT]: 提供侧栏导航与 zh|en 切换。写入 ui_language。
- * [POS]: Layout 的左侧导航。不负责页面内容。
+ * [INPUT]: 依赖 StoreProvider 文案与语言设置、应用图标
+ * [OUTPUT]: 提供页面导航和中文 / English 切换
+ * [POS]: Layout 的导航边界，只呈现实际可用的本地功能
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { motion } from 'framer-motion';
-import { twMerge } from 'tailwind-merge';
-import {
-  HomeHLine,
-  Settings02,
-  Translate,
-  InfoCircle,
-  GodlyWebsite,
-} from '../icons';
 import appIcon from '../assets/app-icon.png';
 import { useStore } from './StoreProvider';
-import { I18N, uiLocale } from '../data/i18n.js';
+import { showError } from '../utils/toast';
 
-const sidebarItems = [
-  { icon: HomeHLine, id: 'home' },
-  { icon: Translate, id: 'translate' },
-  { icon: InfoCircle, id: 'phrases' },
-  { icon: GodlyWebsite, id: 'mana' },
-  { icon: Settings02, id: 'settings' },
-  { icon: InfoCircle, id: 'about' },
-];
+const pages = ['home', 'translate', 'phrases', 'settings', 'about'];
 
 export default function Sidebar({ activeItem, setActiveItem }) {
-  const { settings, updateSettings } = useStore();
-  const locale = uiLocale(settings?.ui_language);
-  const labels = I18N[locale].sidebar;
-
-  return (
-    <div className='h-full flex flex-col bg-[#F9F9F9]'>
-      {/* Logo区域 */}
-      <div className='px-5 py-5'>
-        <div className='flex items-center space-x-2'>
-          <div className='rounded-xl flex items-center justify-center overflow-hidden w-[46px] h-[46px] min-w-[46px] border-2 border-white'>
-            <img
-              src={appIcon}
-              alt='DeepRant Logo'
-              width='46'
-              height='46'
-              className='object-cover w-[46px] h-[46px]'
-            />
-          </div>
-          <h3 className='text-[20px] font-semibold text-[#1a1a1a]'>DeepRant</h3>
-        </div>
-      </div>
-
-      {/* 导航菜单 */}
-      <nav className='flex-1 px-2 py-2'>
-        {sidebarItems.map((item) => {
-          const isActive = activeItem === item.id;
-          return (
-            <div
-              key={item.id}
-              onClick={() => setActiveItem(item.id)}
-              className='relative'>
-              {isActive && (
-                <motion.div
-                  layoutId='activeTab'
-                  className='absolute inset-0 bg-white rounded-lg shadow-[0_4px_8px_-2px_rgba(0,0,0,0.08)]'
-                  initial={false}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 500,
-                    damping: 35,
-                  }}
-                />
-              )}
-              <div
-                className={twMerge(
-                  'flex items-center px-3.5 py-2.5 cursor-pointer',
-                  'text-[14px] font-medium relative z-10',
-                  isActive
-                    ? 'text-[#1a1a1a] font-semibold'
-                    : 'text-[#666666] hover:text-[#1a1a1a]'
-                )}>
-                <item.icon
-                  className={twMerge(
-                    'w-[18px] h-[18px] mr-3',
-                    isActive ? 'stroke-[#1a1a1a]' : 'stroke-[#666666]'
-                  )}
-                />
-                {labels[item.id]}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* -------- 界面语言 -------- */}
-      <div className='px-5 pb-4 flex items-center gap-2 text-[12px] text-[#666666]'>
-        <button
-          type='button'
-          onClick={() => updateSettings({ ui_language: 'zh' })}
-          className={twMerge(
-            'hover:text-[#1a1a1a]',
-            locale === 'zh' && 'font-semibold text-[#1a1a1a]'
-          )}>
-          zh
-        </button>
-        <span>|</span>
-        <button
-          type='button'
-          onClick={() => updateSettings({ ui_language: 'en' })}
-          className={twMerge(
-            'hover:text-[#1a1a1a]',
-            locale === 'en' && 'font-semibold text-[#1a1a1a]'
-          )}>
-          en
-        </button>
-      </div>
+  const { t, locale, updateSettings, settings } = useStore();
+  return <aside className="sidebar">
+    <div className="brand"><img src={appIcon} alt="" width="40" height="40" /><strong>DeepRant</strong></div>
+    <nav aria-label={locale === 'en' ? 'Main navigation' : '主导航'}>
+      {pages.map(id => <button type="button" key={id} aria-current={activeItem === id ? 'page' : undefined}
+        className={activeItem === id ? 'nav-active' : ''} onClick={() => setActiveItem(id)}>{t(id)}</button>)}
+    </nav>
+    <div className="language-switch" aria-label="Interface language">
+      {['zh', 'en'].map(lang => <button key={lang} type="button" disabled={!settings}
+        aria-pressed={locale === lang} onClick={() => updateSettings({ ui_language: lang }).catch(showError)}>
+        {lang === 'zh' ? '中文' : 'English'}
+      </button>)}
     </div>
-  );
+  </aside>;
 }
