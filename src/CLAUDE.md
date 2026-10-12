@@ -10,5 +10,4 @@ pages/: 设置、常用语、首页和手动翻译用户流程。
 data/: 场景、语言与界面文案目录。
 utils/: 日志和 Toast 的共享边界。
 assets/: 静态媒体。
-icons/: 原版导航和游戏翻译卡片共用的 SVG 图标。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

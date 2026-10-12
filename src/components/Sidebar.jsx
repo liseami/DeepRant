@@ -7,7 +7,7 @@
 
 import { Fragment } from 'react';
 import { NavButton, Button } from 'cromma-ui';
-import { HomeDefault, Translate, MessageDefault, ClockDefault, Settings01, MegaphoneAnnouncementShout, UserRectangle } from 'cromma-ui/pika';
+import { HomeDefault, Translate, MessageDefault, LightningThunderElectricOn, Settings01, MegaphoneAnnouncementShout, UserRectangle } from 'cromma-ui/pika';
 import appIcon from '../assets/app-icon.png';
 import { useStore } from './StoreProvider';
 import { showError } from '../utils/toast';
@@ -16,7 +16,7 @@ const sidebarItems = [
   { name: '主页', english: 'Home', icon: HomeDefault, id: 'home' },
   { name: '模式', english: 'Modes', icon: Translate, id: 'translate' },
   { name: '常用语', english: 'Phrases', icon: MessageDefault, id: 'phrases' },
-  { name: '能量', english: 'Energy', icon: ClockDefault, id: 'mana' },
+  { name: '能量', english: 'Energy', icon: LightningThunderElectricOn, id: 'mana' },
   { name: 'AI模型', english: 'AI models', icon: Settings01, id: 'settings' },
   { name: '关于', english: 'About', icon: MegaphoneAnnouncementShout, id: 'about' },
 ];
