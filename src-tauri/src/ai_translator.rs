@@ -305,7 +305,7 @@ async fn request(app: &AppHandle, text: &str, connection_test: bool) -> Result<S
                 &settings.custom_model.protocol,
             )?
         };
-        if !local && secret.as_deref().map_or(true, |key| key.trim().is_empty()) {
+        if !local && secret.as_deref().is_none_or(|key| key.trim().is_empty()) {
             bail!("请先在模型设置中保存此供应商的 API Key；本地 Ollama 无需 Key");
         }
         Ok((settings, secret))

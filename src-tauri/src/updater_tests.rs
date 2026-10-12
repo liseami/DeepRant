@@ -29,7 +29,7 @@ fn verify(mut manifest: Value, key: &str, bytes: &[u8]) -> Result<(), String> {
                 .set_read_timeout(Some(Duration::from_secs(30)))
                 .unwrap();
             let mut request = [0; 4096];
-            stream.read(&mut request).unwrap();
+            assert!(stream.read(&mut request).unwrap() > 0);
             write!(
                 stream,
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",

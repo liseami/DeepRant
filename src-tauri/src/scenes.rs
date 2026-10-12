@@ -1,4 +1,4 @@
-/**
+/*!
  * [INPUT]: 依赖 AppSettings 的 game_scene / custom_scene_* / custom_glossary
  * [OUTPUT]: 提供场景提示词片段与场景目录；ai_translator 只消费这里，不内嵌游戏名单
  * [POS]: 游戏语境的单一数据源。新增游戏只改此文件与前端 scenes 表。

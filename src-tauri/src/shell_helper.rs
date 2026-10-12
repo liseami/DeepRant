@@ -251,7 +251,9 @@ impl ClipboardRestore {
 }
 impl Drop for ClipboardRestore {
     fn drop(&mut self) {
-        let Some((text, revision)) = &self.owned else { return; };
+        let Some((text, revision)) = &self.owned else {
+            return;
+        };
         if platform::clipboard_revision() != *revision
             || self.app.clipboard().read_text().ok().as_ref() != Some(text)
         {
@@ -502,8 +504,8 @@ mod platform {
             let send: unsafe extern "C" fn(Ref, Ref) -> Ref =
                 std::mem::transmute(objc_msgSend as *const ());
             send(
-                objc_getClass(b"NSPasteboard\0".as_ptr().cast()),
-                sel_registerName(b"generalPasteboard\0".as_ptr().cast()),
+                objc_getClass(c"NSPasteboard".as_ptr()),
+                sel_registerName(c"generalPasteboard".as_ptr()),
             )
         }
     }
@@ -511,10 +513,7 @@ mod platform {
         unsafe {
             let send: unsafe extern "C" fn(Ref, Ref) -> isize =
                 std::mem::transmute(objc_msgSend as *const ());
-            send(
-                pasteboard(),
-                sel_registerName(b"changeCount\0".as_ptr().cast()),
-            ) as u64
+            send(pasteboard(), sel_registerName(c"changeCount".as_ptr())) as u64
         }
     }
     pub fn clipboard_empty() -> bool {
@@ -524,8 +523,8 @@ mod platform {
             let count: unsafe extern "C" fn(Ref, Ref) -> usize =
                 std::mem::transmute(objc_msgSend as *const ());
             count(
-                send(pasteboard(), sel_registerName(b"types\0".as_ptr().cast())),
-                sel_registerName(b"count\0".as_ptr().cast()),
+                send(pasteboard(), sel_registerName(c"types".as_ptr())),
+                sel_registerName(c"count".as_ptr()),
             ) == 0
         }
     }
