@@ -48,7 +48,8 @@ jobs:
           npm ci
       - name: Prepare locked macOS disk image tools
         if: runner.os == 'macOS'
-        run: python -m pip install --require-hashes --only-binary=:all: -r scripts/release-requirements.txt
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r scripts/release-requirements.txt
       - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c
         with:
           workspaces: src-tauri -> target
