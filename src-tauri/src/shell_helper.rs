@@ -1,10 +1,9 @@
 /**
- * [INPUT]: store / game_composer / 模型管道、clipboard-manager 与 native_keyboard 主线程注入；平台 API 提供权限、焦点和修饰键状态。
- * [OUTPUT]: 原位翻译/常用语、共享 BusyGuard、Unicode 回填与只含阶段的输入诊断事件。
- * [POS]: 串行输入边界；焦点变更与 AX 读取失败分别保留诊断，安全失败不粘贴；终止后错误才激活主窗口，状态不进入聊天框。
+ * [INPUT]: store / game_composer / inline_translation、clipboard-manager 与 native_keyboard 主线程注入；平台 API 提供权限、焦点和修饰键状态。
+ * [OUTPUT]: 原位翻译/常用语、共享 BusyGuard、有限选区与 Unicode 回填；诊断事件只含阶段和原文恢复可用标志。
+ * [POS]: 串行原生输入边界；占位提交/回滚交给 inline_translation，日常只处理原选区，游戏向当前行首选取而不全选文档。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-use crate::ai_translator;
 use anyhow::{anyhow, bail, Context, Result};
 use enigo::{
     Direction::{Click, Press, Release},
@@ -32,7 +31,8 @@ pub fn report_status(app: &AppHandle, state: &str, message: &str) {
     let _ = app.emit(
         "deeprant://input-status",
         serde_json::json!({"state": state, "message": message,
-            "accessibility_required": state == "error" && accessibility_granted() == Some(false)}),
+            "accessibility_required": state == "error" && accessibility_granted() == Some(false),
+            "recovery_available": crate::inline_translation::recovery_available()}),
     );
     // 正在进行的事务被重复热键拒绝时，保留诊断但不抢焦点、不打断原事务。
     if state == "error" && !INPUT_BUSY.load(Ordering::Acquire) {
@@ -71,13 +71,13 @@ impl Drop for BusyGuard {
     }
 }
 
-struct InputTransaction {
-    app: AppHandle,
+pub(crate) struct InputTransaction {
+    pub(crate) app: AppHandle,
     focus: FocusWatch,
     _busy: BusyGuard,
 }
 impl InputTransaction {
-    fn new(app: AppHandle, busy: BusyGuard) -> Result<Self> {
+    pub(crate) fn new(app: AppHandle, busy: BusyGuard) -> Result<Self> {
         report_status(&app, "focus", "正在确认前台输入焦点与系统权限");
         let focus = FocusWatch::start()?;
         report_status(&app, "waiting_modifiers", "焦点已确认，等待物理修饰键释放");
@@ -89,7 +89,7 @@ impl InputTransaction {
         })
     }
 
-    fn copy_text(&self, select_all: bool) -> Result<String> {
+    pub(crate) fn copy_text(&self, select_current_line: bool) -> Result<String> {
         self.focus.check()?;
         wait_for_modifiers(&self.focus)?;
         let mut clipboard = ClipboardRestore::new(&self.app)?;
@@ -100,9 +100,12 @@ impl InputTransaction {
         );
         clipboard.write(&marker)?;
         let revision = platform::clipboard_revision();
-        if select_all {
-            report_status(&self.app, "copy_select_all", "正在请求全选目标输入文本");
-            shortcut(&self.app, &self.focus, 'a')?;
+        if select_current_line {
+            report_status(&self.app, "copy_current_line", "正在从光标向前选到当前发言行首");
+            #[cfg(target_os = "macos")]
+            modified_key(&self.app, &self.focus, vec![Key::Meta, Key::Shift], Key::LeftArrow, 1)?;
+            #[cfg(not(target_os = "macos"))]
+            modified_key(&self.app, &self.focus, vec![Key::Shift], Key::Home, 1)?;
         }
         shortcut(&self.app, &self.focus, 'c')?;
         report_status(
@@ -134,16 +137,22 @@ impl InputTransaction {
         bail!("当前输入框没有复制出文本。请先选中文本；游戏若禁用复制，请在首页切换游戏输入浮窗。Windows 还需检查双方权限级别是否一致，macOS 需授予辅助功能权限。")
     }
 
-    fn paste(&self, text: &str) -> Result<()> {
+    pub(crate) fn paste(&self, text: &str) -> Result<()> {
         self.focus.check()?;
         wait_for_modifiers(&self.focus)?;
         let mut clipboard = ClipboardRestore::new(&self.app)?;
         clipboard.write(text)?;
-        report_status(&self.app, "pasting", "正在粘贴译文");
+        report_status(&self.app, "pasting", "正在替换已选中的输入文本");
         shortcut(&self.app, &self.focus, 'v')?;
         // 给目标程序处理粘贴的机会；剪贴板若被用户改写，恢复器会保留用户的新内容。
         std::thread::sleep(PASTE_SETTLE);
         Ok(())
+    }
+
+    /// 仅重新选中固定 BMP 占位；原文中的 emoji、组合字符或多行不参与长度计算。
+    pub(crate) fn select_previous_chars(&self, count: usize) -> Result<()> {
+        wait_for_modifiers(&self.focus)?;
+        modified_key(&self.app, &self.focus, vec![Key::Shift], Key::LeftArrow, count)
     }
 }
 
@@ -155,34 +164,7 @@ pub async fn trans_and_replace_text(app: &AppHandle) -> Result<()> {
     if crate::game_composer::should_compose(&settings) {
         return crate::game_composer::open(app).await;
     }
-    let busy = BusyGuard::acquire()?;
-    let app = app.clone();
-    let select_all = !settings.daily_mode;
-    let (transaction, original) = tauri::async_runtime::spawn_blocking(move || {
-        let transaction = InputTransaction::new(app, busy)?;
-        report_status(&transaction.app, "copying", "正在读取输入框文本");
-        let original = transaction.copy_text(select_all)?;
-        Ok::<_, anyhow::Error>((transaction, original))
-    })
-    .await
-    .context("输入任务被中断")??;
-    report_status(&transaction.app, "translating", "正在翻译，原文保持不变");
-    let translated = ai_translator::translate_with_gpt(&transaction.app, &original).await?;
-    if translated.trim().is_empty() {
-        bail!("模型返回空译文，原文保持不变");
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        transaction.focus.check()?;
-        // 网络等待期间用户可能继续编辑；重新复制并核对，避免覆盖新的文字或选区。
-        if transaction.copy_text(select_all)? != original {
-            bail!("翻译期间输入内容或选区发生变化，已取消自动粘贴。请在手动翻译页继续。");
-        }
-        transaction.paste(&translated)?;
-        report_status(&transaction.app, "done", "粘贴操作已发送，请确认目标输入框");
-        Ok(())
-    })
-    .await
-    .context("粘贴任务被中断")?
+    crate::inline_translation::replace(app, !settings.daily_mode, &settings.ui_language).await
 }
 
 pub async fn send_phrase(app: &AppHandle, phrase: &str) -> Result<()> {
@@ -223,6 +205,20 @@ fn wait_for_modifiers(focus: &FocusWatch) -> Result<()> {
 }
 
 fn shortcut(app: &AppHandle, focus: &FocusWatch, letter: char) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    let modifier = Key::Meta;
+    #[cfg(not(target_os = "macos"))]
+    let modifier = Key::Control;
+    modified_key(app, focus, vec![modifier], Key::Unicode(letter), 1)
+}
+
+fn modified_key(
+    app: &AppHandle,
+    focus: &FocusWatch,
+    modifiers: Vec<Key>,
+    key: Key,
+    count: usize,
+) -> Result<()> {
     focus.check()?;
     let snapshot = focus.snapshot.clone();
     let failure = focus.failure.clone();
@@ -235,15 +231,28 @@ fn shortcut(app: &AppHandle, focus: &FocusWatch, letter: char) -> Result<()> {
         {
             bail!("发送按键前焦点已改变，未继续输入");
         }
-        #[cfg(target_os = "macos")]
-        let modifier = Key::Meta;
-        #[cfg(not(target_os = "macos"))]
-        let modifier = Key::Control;
-        keyboard.key(modifier, Press)?;
-        let click = keyboard.key(Key::Unicode(letter), Click);
-        let release = keyboard.key(modifier, Release);
-        click.context("目标程序拒绝按键输入")?;
-        release.context("释放注入的修饰键失败")?;
+        let mut pressed = Vec::new();
+        let action = (|| -> Result<()> {
+            for modifier in modifiers {
+                keyboard.key(modifier, Press)?;
+                pressed.push(modifier);
+            }
+            for _ in 0..count {
+                keyboard.key(key, Click)?;
+            }
+            Ok(())
+        })();
+        // 部分按键失败时仍释放全部已注入修饰键，不让 Shift / Command 卡住。
+        let mut release_error = None;
+        for modifier in pressed.into_iter().rev() {
+            if let Err(error) = keyboard.key(modifier, Release) {
+                release_error.get_or_insert(error);
+            }
+        }
+        action.context("目标程序拒绝按键输入")?;
+        if let Some(error) = release_error {
+            return Err(error).context("释放注入的修饰键失败");
+        }
         Ok(())
     })?;
     std::thread::sleep(Duration::from_millis(50));
