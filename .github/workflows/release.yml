@@ -93,7 +93,7 @@ jobs:
           security unlock-keychain -p "$password" "$keychain"
           security import "$certificate" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -t cert -f pkcs12 -k "$keychain" >/dev/null
           expected_identity='Developer ID Application: Shanghai Diyu Network Technology Co., Ltd (6UB6WM6VQR)'
-          security find-identity -v -p codesigning "$keychain" | rg -F "$expected_identity" >/dev/null || {
+          security find-identity -v -p codesigning "$keychain" | /usr/bin/grep -F "$expected_identity" >/dev/null || {
             echo "Imported certificate does not provide the expected valid Developer ID: $expected_identity" >&2
             exit 1
           }
