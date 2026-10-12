@@ -48,7 +48,7 @@ pub fn model_preset(provider: &str) -> Option<ModelConfig> {
     let (api_url, model_name, protocol) = match provider {
         "deepseek" => ("https://api.deepseek.com", "deepseek-flash", "openai"),
         "deepseek-pro" | "deepseek-R1" => ("https://api.deepseek.com", "deepseek-v4-pro", "openai"),
-        "openai" => ("https://api.openai.com/v1", "gpt-4o-mini", "openai"),
+        "openai" => ("https://api.openai.com/v1", "gpt-4.1-mini", "openai"),
         "anthropic" => (
             "https://api.anthropic.com/v1",
             "claude-haiku-5-5",

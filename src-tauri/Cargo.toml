@@ -1,12 +1,12 @@
 [package]
 name = "DeepRant"
-version = "1.1.9"
-description = "A Tauri App"
-authors = ["you"]
+version = "2.0.0"
+description = "Desktop game and everyday chat translator"
+authors = ["liseami"]
 license = ""
 repository = ""
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.90"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,22 +17,39 @@ rust-version = "1.77.2"
 name = "deep_rant_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7.2", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-beta", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.12.3", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-clipboard-manager = "2.0.0"
-tauri-plugin-shell = "2.0.0"
 anyhow = "1.0"
-tauri-plugin-store = "2"
 reqwest = { version = "0.12.12", features = ["json"] }
-enigo = "0.3"
+enigo = "0.6.1"
+keyring = { version = "3.6.3", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-process = "2"
+tauri-plugin-log = "2"
+log = "0.4"
+tempfile = "3.27.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2"
 
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+
+[dev-dependencies]
+tauri = { version = "2.12.3", features = ["test"] }

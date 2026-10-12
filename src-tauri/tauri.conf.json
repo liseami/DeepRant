@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DeepRant",
-  "version": "1.1.9",
+  "version": "2.0.0",
   "identifier": "com.DeepRant.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -15,22 +15,23 @@
         "title": "DeepRant",
         "width": 1280,
         "height": 720,
-        "minWidth": 1280,
-        "maxWidth": 1280,
-        "minHeight": 720,
-        "maxHeight": 720,
+        "minWidth": 900,
+        "minHeight": 600,
         "theme": "Light",
         "visible": true,
         "decorations": true
       }
-    ]
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'self'"
+    }
   },
   "bundle": {
     "createUpdaterArtifacts": true,
     "targets": [
       "app",
       "dmg",
-      "msi"
+      "nsis"
     ],
     "macOS": {
       "entitlements": "./entitlements.plist",
@@ -50,17 +51,20 @@
       },
       "files": {},
       "hardenedRuntime": true,
-      "minimumSystemVersion": "10.13",
+      "minimumSystemVersion": "12.0",
       "signingIdentity": "Developer ID Application: Shanghai Diyu Network Technology Co., Ltd (6UB6WM6VQR)"
     },
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com",
-      "wix": {
-        "language": [
-          "zh-CN"
-        ]
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English",
+          "SimpChinese"
+        ],
+        "displayLanguageSelector": true
       }
     },
     "active": true,
@@ -80,7 +84,8 @@
       ],
       "windows": {
         "installMode": "passive"
-      }
+      },
+      "requireSignedVersion": true
     }
   }
 }

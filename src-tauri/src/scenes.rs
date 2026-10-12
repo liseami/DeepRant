@@ -162,6 +162,14 @@ pub const SCENES: &[SceneDef] = &[
 </context>"#,
     },
     SceneDef {
+        id: "wot",
+        context: "<context>环境: 坦克世界。保留坦克型号、穿深、装填、装甲角度与地图点位的通用译名。</context>",
+    },
+    SceneDef {
+        id: "honor_of_kings",
+        context: "<context>环境: 王者荣耀 / Honor of Kings。保留英雄、装备、分路与团战用语；这里只提供桌面翻译语境。</context>",
+    },
+    SceneDef {
         id: "yanyun",
         context: r#"<context>
 • 环境: 燕云十六声
@@ -206,8 +214,5 @@ pub fn glossary_block(glossary: &str) -> String {
     if glossary.is_empty() {
         return String::new();
     }
-    format!(
-        "<glossary>\n按对照表优先：\n{}\n</glossary>",
-        glossary
-    )
+    format!("<glossary>\n按对照表优先：\n{}\n</glossary>", glossary)
 }

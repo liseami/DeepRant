@@ -1,23 +1,19 @@
 /**
- * [INPUT]: 依赖 store 初始化、shortcut 注册、tray 创建、provider 测连
- * [OUTPUT]: 暴露设置、快捷键、常用语与模型测连命令；启动整个 Tauri 应用
- * [POS]: 后端入口。新命令只在这里登记，实现放回各模块。
+ * [INPUT]: store 的设置与凭据迁移、shortcut 的注册事务、ai_translator 的统一模型管道。
+ * [OUTPUT]: 受校验的设置/常用语/翻译 IPC 与桌面生命周期。
+ * [POS]: 仅编排边界模块；WebView 不直接写文件，快捷键变更与系统注册一起提交。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-
-use crate::store::initialize_settings;
 use tauri::Manager;
 pub mod ai_translator;
+pub mod credentials;
 pub mod scenes;
 pub mod shell_helper;
 pub mod shortcut;
 pub mod store;
 pub mod tray;
-
-#[tauri::command]
-fn log_to_backend(message: String) {
-    println!("Frontend Log: {}", message);
-}
+#[cfg(test)]
+mod updater_tests;
 
 #[tauri::command]
 fn get_version(app_handle: tauri::AppHandle) -> String {
@@ -25,21 +21,81 @@ fn get_version(app_handle: tauri::AppHandle) -> String {
 }
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+async fn get_settings(app_handle: tauri::AppHandle) -> Result<store::AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        store::get_settings(&app_handle).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|_| "设置任务被中断".to_string())?
+}
+
+#[tauri::command]
+async fn update_settings(
+    app_handle: tauri::AppHandle,
+    patch: serde_json::Value,
+) -> Result<store::AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        store::update_settings(&app_handle, patch).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|_| "设置任务被中断".to_string())?
+}
+
+#[tauri::command]
+async fn clear_api_key(app_handle: tauri::AppHandle) -> Result<store::AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        store::clear_api_key(&app_handle).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|_| "凭据任务被中断".to_string())?
+}
+
+#[tauri::command]
+async fn test_model_connection(app_handle: tauri::AppHandle) -> Result<String, String> {
+    ai_translator::test_model_connection(&app_handle)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn translate_text(app_handle: tauri::AppHandle, text: String) -> Result<String, String> {
+    ai_translator::translate_text(&app_handle, &text)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_shortcut_status() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(shortcut::get_shortcut_status)
+        .await
+        .map_err(|_| "快捷键状态读取被中断".to_string())
+}
+
+async fn mutate_shortcuts(
+    app: tauri::AppHandle,
+    update: impl FnOnce(&mut store::AppSettings) -> Result<(), String> + Send + 'static,
+) -> Result<store::AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || shortcut::change_shortcut_settings(&app, update))
+        .await
+        .map_err(|_| "快捷键设置任务被中断".to_string())?
+}
+
+#[tauri::command]
+fn set_shortcuts_paused(paused: bool) {
+    shortcut::set_shortcuts_paused(paused);
 }
 
 #[tauri::command]
 async fn update_translator_shortcut(
     app_handle: tauri::AppHandle,
     keys: Vec<String>,
-) -> Result<(), String> {
-    shortcut::update_translator_shortcut(&app_handle, keys)
-}
-
-#[tauri::command]
-async fn get_settings(app_handle: tauri::AppHandle) -> Result<store::AppSettings, String> {
-    store::get_settings(&app_handle).map_err(|e| e.to_string())
+) -> Result<store::AppSettings, String> {
+    let hotkey = shortcut::keys_to_hotkey(keys)?;
+    mutate_shortcuts(app_handle, move |settings| {
+        settings.trans_hotkey = hotkey;
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -48,8 +104,16 @@ async fn update_phrase(
     id: i32,
     phrase: String,
 ) -> Result<store::AppSettings, String> {
-    store::update_phrase_text(&app_handle, id, phrase).map_err(|e| e.to_string())?;
-    store::get_settings(&app_handle).map_err(|e| e.to_string())
+    mutate_shortcuts(app_handle, move |settings| {
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or("常用语不存在，请刷新后重试")?;
+        item.phrase = phrase;
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -59,9 +123,16 @@ async fn update_phrase_hotkey(
     keys: Vec<String>,
 ) -> Result<store::AppSettings, String> {
     let hotkey = shortcut::keys_to_hotkey(keys)?;
-    store::update_phrase_hotkey(&app_handle, id, hotkey).map_err(|e| e.to_string())?;
-    shortcut::reload_shortcuts(&app_handle)?;
-    store::get_settings(&app_handle).map_err(|e| e.to_string())
+    mutate_shortcuts(app_handle, move |settings| {
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or("常用语不存在，请刷新后重试")?;
+        item.hotkey = hotkey;
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -70,9 +141,16 @@ async fn set_phrase_enabled(
     id: i32,
     enabled: bool,
 ) -> Result<store::AppSettings, String> {
-    store::set_phrase_enabled(&app_handle, id, enabled).map_err(|e| e.to_string())?;
-    shortcut::reload_shortcuts(&app_handle)?;
-    store::get_settings(&app_handle).map_err(|e| e.to_string())
+    mutate_shortcuts(app_handle, move |settings| {
+        let item = settings
+            .phrases
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or("常用语不存在，请刷新后重试")?;
+        item.enabled = enabled;
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -80,85 +158,114 @@ async fn set_phrases_enabled(
     app_handle: tauri::AppHandle,
     enabled: bool,
 ) -> Result<store::AppSettings, String> {
-    store::set_phrases_enabled(&app_handle, enabled).map_err(|e| e.to_string())?;
-    shortcut::reload_shortcuts(&app_handle)?;
-    store::get_settings(&app_handle).map_err(|e| e.to_string())
+    mutate_shortcuts(app_handle, move |settings| {
+        settings.phrases_enabled = enabled;
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
-async fn test_model_connection(
+async fn add_phrase(
     app_handle: tauri::AppHandle,
-) -> Result<String, String> {
-    ai_translator::test_model_connection(&app_handle)
-        .await
-        .map_err(|e| e.to_string())
+    phrase: String,
+) -> Result<store::AppSettings, String> {
+    mutate_shortcuts(app_handle, move |settings| {
+        if phrase.trim().is_empty() {
+            return Err("请输入常用语".into());
+        }
+        let id = settings
+            .phrases
+            .iter()
+            .map(|p| p.id)
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .ok_or("常用语 ID 已耗尽")?;
+        settings.phrases.push(store::Phrase {
+            id,
+            phrase,
+            enabled: false,
+            hotkey: store::HotkeyConfig {
+                modifiers: vec![],
+                key: String::new(),
+                shortcut: String::new(),
+            },
+        });
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn delete_phrase(
+    app_handle: tauri::AppHandle,
+    id: i32,
+) -> Result<store::AppSettings, String> {
+    mutate_shortcuts(app_handle, move |settings| {
+        if !settings.phrases.iter().any(|p| p.id == id) {
+            return Err("常用语不存在，请刷新后重试".into());
+        }
+        settings.phrases.retain(|p| p.id != id);
+        Ok(())
+    })
+    .await
+}
+
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 pub fn run() {
-    println!("Starting application...");
-
-    let mut builder = tauri::Builder::default()
+    tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            show_main(app)
+        }))
+        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_shell::init())
-        // 剪贴板插件
         .plugin(tauri_plugin_clipboard_manager::init())
-        // opener插件
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            // 初始化存储
-            println!("Initializing...");
-            match initialize_settings(&app.app_handle()) {
-                Ok(_) => println!("应用设置初始化完成"),
-                Err(e) => eprintln!("初始化设置失败: {}", e),
+            let handle = app.handle();
+            if let Err(error) = store::initialize_settings(handle) {
+                log::error!("初始化设置失败: {error}");
             }
-
-            // 初始化所有快捷键
-            println!("正在注册全局快捷键...");
-            match shortcut::init_shortcuts(&app.app_handle()) {
-                Ok(_) => println!("快捷键设置成功"),
-                Err(e) => eprintln!("注册全局快捷键失败: {}", e),
+            if let Err(error) = shortcut::init_shortcuts(handle) {
+                log::warn!("快捷键注册失败: {error}");
             }
-
-            // 创建AI模型托盘
-            match tray::create_tray(&app.app_handle()) {
-                Ok(_) => println!("托盘创建成功"),
-                Err(e) => eprintln!("创建托盘失败: {}", e),
-            }
-
+            tray::create_tray(handle)?;
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
-            greet,
-            update_translator_shortcut,
-            log_to_backend,
-            get_settings,
             get_version,
+            get_settings,
+            update_settings,
+            clear_api_key,
+            test_model_connection,
+            translate_text,
+            get_shortcut_status,
+            set_shortcuts_paused,
+            update_translator_shortcut,
             update_phrase,
             update_phrase_hotkey,
             set_phrase_enabled,
             set_phrases_enabled,
-            test_model_connection
-        ]);
-
-    // 只在非Windows系统上添加窗口事件监听
-    #[cfg(not(target_os = "windows"))]
-    {
-        builder = builder.on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().unwrap();
-                #[cfg(target_os = "macos")]
-                let _ = window
-                    .app_handle()
-                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
-                api.prevent_close();
-            }
-            _ => {}
-        });
-    }
-
-    builder
+            add_phrase,
+            delete_phrase
+        ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("DeepRant desktop runtime failed");
 }

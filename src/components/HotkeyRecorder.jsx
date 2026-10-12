@@ -10,33 +10,44 @@ import { invoke } from '@tauri-apps/api/core';
 import { useStore } from './StoreProvider';
 import { showSuccess, showError } from '../utils/toast';
 
+// -------- 录制只有一个所有者，迟到的旧实例响应不得解除新实例暂停 --------
+let recordingOwner = null;
+
 export default function HotkeyRecorder({ hotkey, onSave, disabled = false, label }) {
   const { t } = useStore();
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const candidate = useRef(null);
   const active = useRef(false);
+  const owner = useRef(Symbol('hotkey-recorder'));
 
   async function stop() {
     active.current = false;
     candidate.current = null;
     setRecording(false);
-    await invoke('set_shortcuts_paused', { paused: false }).catch(showError);
+    if (recordingOwner === owner.current) {
+      recordingOwner = null;
+      await invoke('set_shortcuts_paused', { paused: false }).catch(showError);
+    }
   }
 
   async function start() {
     active.current = true;
+    recordingOwner = owner.current;
     try {
       await invoke('set_shortcuts_paused', { paused: true });
-      if (active.current) setRecording(true);
-      else await invoke('set_shortcuts_paused', { paused: false });
-    } catch (failure) { active.current = false; showError(failure); }
+      if (active.current && recordingOwner === owner.current) setRecording(true);
+      else if (recordingOwner === owner.current) await stop();
+    } catch (failure) { await stop(); showError(failure); }
   }
 
   useEffect(() => () => {
     const wasActive = active.current;
     active.current = false;
-    if (wasActive) invoke('set_shortcuts_paused', { paused: false }).catch(showError);
+    if (wasActive && recordingOwner === owner.current) {
+      recordingOwner = null;
+      invoke('set_shortcuts_paused', { paused: false }).catch(showError);
+    }
   }, []);
 
   function keyDown(event) {

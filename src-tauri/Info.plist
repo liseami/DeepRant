@@ -1,25 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <!-- 自动化操作权限 -->
-    <key>NSAppleEventsUsageDescription</key>
-    <string>DeepRant 通过辅助功能与输入模拟，在游戏聊天框中完成复制和粘贴。</string>
-    
-    <!-- System Events 特定权限 -->
-    <key>NSSystemEventsUsageDescription</key>
-    <string>DeepRant需要访问System Events来执行自动化操作</string>
-    
-    <!-- 辅助功能权限 -->
-    <key>NSAccessibilityUsageDescription</key>
-    <string>DeepRant 通过辅助功能与输入模拟，在游戏聊天框中完成复制和粘贴。</string>
-
-    <!-- 允许作为Agent运行 -->
-    <key>LSUIElement</key>
-    <true/>
-    
-    <!-- 声明应用支持Retina显示 -->
-    <key>NSHighResolutionCapable</key>
-    <true/>
-</dict>
-</plist>
+<plist version="1.0"><dict>
+<key>NSAccessibilityUsageDescription</key><string>DeepRant copies and pastes chat text when you trigger a configured shortcut.</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>
