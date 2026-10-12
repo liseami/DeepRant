@@ -1,16 +1,19 @@
 /**
- * [INPUT]: 依赖 tauri_plugin_store 的 JSON 持久化与 credentials 的系统凭据；读取旧版设置时补齐默认值
+ * [INPUT]: 依赖 std::fs 读取应用数据目录 JSON、tempfile 同目录原子替换与 credentials 的系统凭据
  * [OUTPUT]: 提供 AppSettings、模型配置、校验、设置 patch 与快捷键事务持久化入口
- * [POS]: 设置的唯一写边界；WebView 不持久化数据，Key 不进入序列化快照，快捷键事务只替换其职责字段
+ * [POS]: 设置的唯一写边界；无缓存或自动保存旁路，读错保留原文件，凭据迁移验证后才原子清除旧明文
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
 use reqwest::Url;
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::fs;
+use std::io::{ErrorKind, Write};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::AppHandle;
-use tauri_plugin_store::StoreExt;
+use tauri::{AppHandle, Manager};
+use tempfile::NamedTempFile;
 
 const STORE_FILENAME: &str = "store.json";
 const MAX_TEXT_BYTES: usize = 32 * 1024;
@@ -225,7 +228,7 @@ impl Default for AppSettings {
             model_type: "deepseek".into(),
             custom_model: ModelConfig::default(),
             phrases: default_phrases(),
-            phrases_enabled: true,
+            phrases_enabled: false,
             custom_scene_name: String::new(),
             custom_scene_prompt: String::new(),
             custom_glossary: String::new(),
@@ -329,20 +332,47 @@ fn serialized_settings(settings: &AppSettings) -> Value {
 
 fn save_unlocked(app: &AppHandle, settings: &AppSettings) -> Result<()> {
     validate_settings(settings)?;
-    let store = app
-        .store(STORE_FILENAME)
-        .map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
-    let previous = store.get("settings");
-    store.set("settings", serialized_settings(settings));
-    if store.save().is_err() {
-        match previous {
-            Some(value) => store.set("settings", value),
-            None => {
-                store.delete("settings");
-            }
-        }
-        bail!("设置保存失败，请检查磁盘空间与应用数据目录权限；原设置已保留");
+    let path = settings_path(app)?;
+    let mut root = read_settings_file(&path)?;
+    root["settings"] = serialized_settings(settings);
+    atomic_write_settings_file(&path, &root)
+}
+
+fn settings_path(app: &AppHandle) -> Result<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .map(|directory| directory.join(STORE_FILENAME))
+        .map_err(|_| anyhow!("无法定位应用数据目录，请检查系统用户目录配置"))
+}
+
+fn read_settings_file(path: &Path) -> Result<Value> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(json!({})),
+        Err(_) => bail!("无法读取设置文件，原文件已保留；请检查应用数据目录权限"),
+    };
+    let root: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| anyhow!("设置文件 JSON 无效，原文件已保留；请备份 store.json 后修复"))?;
+    if !root.is_object() {
+        bail!("设置文件根节点必须是对象，原文件已保留；请备份 store.json 后修复");
     }
+    Ok(root)
+}
+
+fn atomic_write_settings_file(path: &Path, root: &Value) -> Result<()> {
+    let directory = path.parent().ok_or_else(|| anyhow!("设置文件目录无效"))?;
+    let bytes = serde_json::to_vec(root).map_err(|_| anyhow!("无法编码设置，原文件已保留"))?;
+    // 临时文件必须与目标同目录；写入与同步失败时不接触旧文件，跨平台 persist 原子覆盖。
+    let persist = || -> std::io::Result<()> {
+        fs::create_dir_all(directory)?;
+        let mut temporary = NamedTempFile::new_in(directory)?;
+        temporary.write_all(&bytes)?;
+        temporary.as_file().sync_all()?;
+        temporary.persist(path).map_err(|error| error.error)?;
+        Ok(())
+    };
+    persist()
+        .map_err(|_| anyhow!("设置保存失败，原文件已保留；请检查磁盘空间与应用数据目录权限"))?;
     Ok(())
 }
 
@@ -364,10 +394,8 @@ fn refresh_key_state(settings: &mut AppSettings) -> Result<()> {
 }
 
 fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
-    let store = app
-        .store(STORE_FILENAME)
-        .map_err(|_| anyhow!("无法打开设置文件，请检查应用数据目录权限"))?;
-    let existing = store.get("settings");
+    let root = read_settings_file(&settings_path(app)?)?;
+    let existing = root.get("settings").cloned();
     let mut raw = existing.clone().unwrap_or_else(|| json!({}));
     let legacy_key = raw
         .get_mut("custom_model")
@@ -385,19 +413,9 @@ fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
         &settings.custom_model.api_url,
         &settings.custom_model.protocol,
     )?;
-    // 旧 auth 属于旧自定义端点，不能随着内置供应商选择被迁移到另一家。
-    if let Some(secret) = legacy_key
-        .as_ref()
-        .and_then(Value::as_str)
-        .filter(|key| !key.trim().is_empty())
-    {
-        let endpoint = &settings.custom_model.api_url;
-        let protocol = &settings.custom_model.protocol;
-        crate::credentials::write(endpoint, protocol, secret.trim())?;
-        if crate::credentials::read(endpoint, protocol)?.as_deref() != Some(secret.trim()) {
-            bail!("旧 API Key 迁移未能验证，原明文设置已保留，请解锁系统凭据库后重试");
-        }
-    }
+    // 先记住旧 auth 对应端点，再选择当前供应商；迁移不能把凭据发配到另一家。
+    let legacy_endpoint = settings.custom_model.api_url.clone();
+    let legacy_protocol = settings.custom_model.protocol.clone();
     if legacy_key.is_some() && settings.model_type != "custom" {
         if let Some(mut preset) = model_preset(&settings.model_type) {
             preset.api_url = normalize_api_url(&preset.api_url, &preset.protocol)?;
@@ -422,6 +440,25 @@ fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
             .into();
     }
     validate_settings(&settings)?;
+    // 全部设置校验通过之后才修改钥匙串；已有不同凭据时绝不隐式覆盖。
+    if let Some(secret) = legacy_key
+        .as_ref()
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|key| !key.is_empty())
+    {
+        match crate::credentials::read(&legacy_endpoint, &legacy_protocol)? {
+            Some(existing) if existing != secret => {
+                bail!("旧设置与系统凭据库的 API Key 不一致，两者均已保留；请先备份 store.json 并明确选择要使用的凭据");
+            }
+            Some(_) => {}
+            None => crate::credentials::write(&legacy_endpoint, &legacy_protocol, secret)?,
+        }
+        if crate::credentials::read(&legacy_endpoint, &legacy_protocol)?.as_deref() != Some(secret)
+        {
+            bail!("旧 API Key 迁移未能验证，原明文设置已保留，请解锁系统凭据库后重试");
+        }
+    }
     let sanitized = serialized_settings(&settings);
     if existing.as_ref() != Some(&sanitized) {
         save_unlocked(app, &settings)?;
@@ -636,6 +673,28 @@ pub fn set_phrases_enabled(app: &AppHandle, enabled: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn atomic_settings_replace_preserves_other_keys_and_failed_targets() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(STORE_FILENAME);
+        assert_eq!(read_settings_file(&path).unwrap(), json!({}));
+        let mut root = json!({"settings": {}, "other": {"retained": true}});
+        atomic_write_settings_file(&path, &root).unwrap();
+        root["settings"] = serialized_settings(&AppSettings::default());
+        atomic_write_settings_file(&path, &root).unwrap();
+        assert_eq!(read_settings_file(&path).unwrap(), root);
+        assert!(!root["settings"]["phrases_enabled"].as_bool().unwrap());
+        let blocked = directory.path().join("directory-target");
+        fs::create_dir(&blocked).unwrap();
+        fs::write(blocked.join("old-data"), b"retained").unwrap();
+        assert!(atomic_write_settings_file(&blocked, &root).is_err());
+        assert_eq!(fs::read(blocked.join("old-data")).unwrap(), b"retained");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+        fs::write(&path, b"{invalid-json").unwrap();
+        assert!(read_settings_file(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"{invalid-json");
+    }
 
     #[test]
     fn patch_rejects_invalid_fields_and_never_serializes_credentials() {
