@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
+from notarization import stapler
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'releases'
@@ -28,19 +28,6 @@ def run(*args, env=None, capture=False):
     return subprocess.run(command, cwd=ROOT, check=True,
                           env=SAFE_ENV if env is None else env,
                           capture_output=capture, text=capture)
-
-
-def staple(artifact):
-    # ----- 仅 Accepted 后的票据服务错误可短暂重试；损坏/撤销/写盘错误直接失败 -----
-    for attempt in range(3):
-        try:
-            run('xcrun', 'stapler', 'staple', artifact)
-            return
-        except subprocess.CalledProcessError as error:
-            if error.returncode != 68 or attempt == 2:
-                raise
-            print(f'Apple ticket service unavailable; retrying staple ({attempt + 2}/3)', flush=True)
-            time.sleep(15 * (attempt + 1))
 
 
 def main():
@@ -77,8 +64,8 @@ def main():
                 run('xcrun', 'notarytool', 'log', record['id'], *auth,
                     OUTPUT / f"notary-{record['id']}.json")
                 raise SystemExit('Apple rejected the artifact; inspect the notarization log')
-            staple(ticket_target)
-            run('xcrun', 'stapler', 'validate', ticket_target)
+            stapler('staple', ticket_target, SAFE_ENV)
+            stapler('validate', ticket_target, SAFE_ENV)
 
         with tempfile.TemporaryDirectory(prefix='deeprant-package-') as directory:
             work = Path(directory)
@@ -97,7 +84,7 @@ def main():
             with tarfile.open(update) as bundle:
                 bundle.extractall(verify, filter='tar')
             run('codesign', '--verify', '--deep', '--strict', verify / host.name)
-            run('xcrun', 'stapler', 'validate', verify / host.name)
+            stapler('validate', verify / host.name, SAFE_ENV)
             run('spctl', '--assess', '--type', 'execute', verify / host.name)
             run('npm', 'run', 'tauri', '--', 'signer', 'sign', '--app-version', version,
                 update, env=updater_env, capture=True)

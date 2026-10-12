@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 from ds_store import DSStore
 from mac_alias import Alias
+from notarization import stapler
 
 ROOT = Path(__file__).resolve().parent.parent
 SAFE_ENV = {key: value for key, value in os.environ.items()
@@ -72,7 +73,7 @@ def verify_payload(mount, version, architecture):
     if run('lipo', '-archs', executable).stdout.split() != [architecture]:
         raise SystemExit('DMG application architecture mismatch')
     run('codesign', '--verify', '--deep', '--strict', app)
-    run('xcrun', 'stapler', 'validate', app)
+    stapler('validate', app, SAFE_ENV)
     run('spctl', '--assess', '--type', 'execute', '--verbose=2', app)
 
 
@@ -87,7 +88,7 @@ def main():
     image = args.dmg.resolve()
     if args.notarized:
         run('codesign', '--verify', '--strict', image)
-        run('xcrun', 'stapler', 'validate', image)
+        stapler('validate', image, SAFE_ENV)
         run('spctl', '--assess', '--type', 'open', '--context',
             'context:primary-signature', '--verbose=2', image)
     with tempfile.TemporaryDirectory(prefix='deeprant-dmg-verify-') as directory:

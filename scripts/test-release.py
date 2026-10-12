@@ -100,20 +100,21 @@ class ReleaseContracts(unittest.TestCase):
             self.assertFalse(any(key in env for key in keys))
             self.assertEqual(env['CC_SIGN_IDENTITY'], '-')
 
-    def test_stapling_retries_only_ticket_service_failure_and_remains_bounded(self):
-        spec = importlib.util.spec_from_file_location('stapling_contract', SOURCE / 'release.py')
+    def test_ticket_operations_retry_only_service_failure_and_remain_bounded(self):
+        spec = importlib.util.spec_from_file_location('ticket_contract', SOURCE / 'notarization.py')
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        network_error = subprocess.CalledProcessError(68, ['xcrun', 'stapler'])
-        with patch.object(module, 'run', side_effect=[network_error, None]) as run, patch.object(module.time, 'sleep') as sleep:
-            module.staple(Path('/fixture/DeepRant.dmg'))
-            self.assertEqual(run.call_count, 2)
-            sleep.assert_called_once_with(15)
-        for code, attempts in [(65, 1), (77, 1), (68, 3)]:
-            with self.subTest(code=code), patch.object(module, 'run', side_effect=subprocess.CalledProcessError(code, ['xcrun', 'stapler'])) as run, patch.object(module.time, 'sleep'):
-                with self.assertRaises(subprocess.CalledProcessError):
-                    module.staple(Path('/fixture/DeepRant.dmg'))
-                self.assertEqual(run.call_count, attempts)
+        failed = lambda code: subprocess.CompletedProcess(['xcrun', 'stapler'], code, '', 'ticket fixture')
+        for operation in ('staple', 'validate'):
+            with patch.object(module.subprocess, 'run', side_effect=[failed(68), failed(0)]) as run, patch.object(module.time, 'sleep') as sleep:
+                module.stapler(operation, Path('/fixture/DeepRant.dmg'), {})
+                self.assertEqual(run.call_count, 2)
+                sleep.assert_called_once_with(15)
+            for code, attempts in [(65, 1), (77, 1), (68, 3)]:
+                with self.subTest(operation=operation, code=code), patch.object(module.subprocess, 'run', return_value=failed(code)) as run, patch.object(module.time, 'sleep'):
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        module.stapler(operation, Path('/fixture/DeepRant.dmg'), {})
+                    self.assertEqual(run.call_count, attempts)
 
     def test_local_installation_accepts_only_expected_signing_team(self):
         spec = importlib.util.spec_from_file_location('installation_contract', SOURCE / 'install-apps.py')
