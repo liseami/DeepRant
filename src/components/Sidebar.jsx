@@ -7,7 +7,7 @@
 
 import { motion } from 'framer-motion';
 import { twMerge } from 'tailwind-merge';
-import { HomeHLine, Settings02, Translate, InfoCircle, GodlyWebsite } from '../icons';
+import { HomeHLine, Settings02, Translate, InfoCircle, GodlyWebsite, UserUser01 } from '../icons';
 import appIcon from '../assets/app-icon.png';
 import { useStore } from './StoreProvider';
 import { showError } from '../utils/toast';
@@ -53,6 +53,13 @@ export default function Sidebar({ activeItem, setActiveItem }) {
         {['zh', 'en'].map(lang => <button type="button" key={lang} disabled={!settings} aria-pressed={locale === lang}
           className={`px-2 py-1 rounded-md text-xs transition-colors ${locale === lang ? 'bg-white text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           onClick={() => updateSettings({ ui_language: lang }).catch(showError)}>{lang === 'zh' ? '中文' : 'English'}</button>)}
+      </div>
+      <div className="px-2 pb-3">
+        <button type="button" onClick={() => setActiveItem('user')}
+          className="w-full flex items-center px-3.5 py-2.5 text-[#666666] hover:text-[#1a1a1a]">
+          <UserUser01 className="w-[18px] h-[18px] mr-3 stroke-[#666666]" />
+          <span className="text-[14px] font-medium">{locale === 'en' ? 'Not signed in' : '未登录'}</span>
+        </button>
       </div>
     </div>
   );
