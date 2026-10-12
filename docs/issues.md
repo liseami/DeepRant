@@ -1,12 +1,12 @@
 <!--
 [INPUT]: GitHub issue / PR 原始诉求、独立实现与主 Agent 技术验收证据。
-[OUTPUT]: 逐条需求覆盖、历史背景及未完成的现场/凭据/公开交付边界。
+[OUTPUT]: 逐条需求覆盖、公开交付证据，以及现场验收和历史凭据的处理边界。
 [POS]: README 与发布决策的证据台账，历史模型诉求保留原名，当前产品能力按通用实现记录。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 # DeepRant 2.0 需求与验收记录
 
-调查日期：2026-10-12。39 个开放 issue、2 个开放 PR，正文和评论已逐条阅读。需求由本项目独立实现，没有合并外部 PR。这里记录代码与验证证据；当前公开产物与逐条处理进度以 GitHub Releases / Issues / PR 为准。
+调查日期：2026-10-12。调查时的 39 个开放 issue、2 个开放 PR，正文和评论已逐条阅读；需求由本项目独立实现，没有合并外部 PR。[2.0.0](https://github.com/liseami/DeepRant/releases/tag/v2.0.0) 已公开，41 项均已逐条回复并关闭：37 个 issue 按 completed，#29 手机客户端和 #54 连续频道读取 / OCR 按 not_planned，两个 PR 的可行诉求独立吸收后关闭。游戏现场与视觉验收仍由用户完成。
 
 ## 架构落点
 
@@ -26,7 +26,7 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#10](https://github.com/liseami/DeepRant/issues/10) | 五个主页面与浮窗可切换中文 / English；README 中文默认、独立英文入口。 | 原生系统诊断当前仍以中文呈现。 |
 | [#17](https://github.com/liseami/DeepRant/issues/17) | 彩虹六号与全境封锁2的独立术语语境。 | 不等于实测反作弊兼容。 |
 | [#20](https://github.com/liseami/DeepRant/issues/20) | 漫威争锋语境。 | 游戏现场待验收。 |
-| [#21](https://github.com/liseami/DeepRant/issues/21) | Windows 原生输入与权限 / 焦点诊断，不再依赖 PowerShell 执行策略。 | Windows 本轮代码尚未运行。 |
+| [#21](https://github.com/liseami/DeepRant/issues/21) | Windows 原生输入与权限 / 焦点诊断，不再依赖 PowerShell 执行策略。 | Windows 原生检查与双 runner 安装验证通过；游戏现场待验收。 |
 | [#24](https://github.com/liseami/DeepRant/issues/24) | 永劫无间语境。 | 游戏现场待验收。 |
 | [#26](https://github.com/liseami/DeepRant/issues/26) | 战舰世界与评论中的坦克世界均有独立语境；可用术语对照表纠正船名和车型。 | 未内置完整船名 / 车型数据库。 |
 | [#28](https://github.com/liseami/DeepRant/issues/28) | 原文决定队友 / 对手对象，不添 ES / NA / 河南等对象或地区；共享输入锁防止翻译状态成为下一次原文。 | 模型输出质量需真实服务验收。 |
@@ -45,10 +45,10 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#44](https://github.com/liseami/DeepRant/issues/44) | LoL 输入浮窗与原窗口身份恢复，避开复制限制。 | Windows 游戏现场待验收。 |
 | [#45](https://github.com/liseami/DeepRant/issues/45) | 硅基预设，根地址 / v1 / 完整请求地址幂等归一，解析最终 content。 | 需要用户有效 Key 与供应商模型权限。 |
 | [#46](https://github.com/liseami/DeepRant/issues/46) | 原诉求针对 R1；现使用通用推理兼容开关、中文直出、仅思考 / 截断 / 空内容明确诊断；错误不粘贴进聊天。 | 真实推理服务 / QQ / Dota 现场待验收。 |
-| [#47](https://github.com/liseami/DeepRant/issues/47) | 当前用户 NSIS，安装 / 启动 / 卸载脚本及 Windows Common Controls manifest 修复。 | 本轮 Windows 原生检查和安装器验收待运行。 |
+| [#47](https://github.com/liseami/DeepRant/issues/47) | 当前用户 NSIS，安装 / 启动 / 卸载脚本及 Windows Common Controls manifest 修复。 | Windows 2025 / 2022 实际安装、启动、卸载均通过。 |
 | [#48](https://github.com/liseami/DeepRant/issues/48) | 风暴英雄语境。 | 游戏现场待验收。 |
 | [#49](https://github.com/liseami/DeepRant/issues/49) | 常用语整体 / 逐条开关及自定义快捷键，默认整体关闭。 | 注册事务有原生单测。 |
-| [#50](https://github.com/liseami/DeepRant/issues/50) | 维护升级和本机新包交付，发布分支验收流程已准备。 | 公开发行状态见 release 工作流与安装包。 |
+| [#50](https://github.com/liseami/DeepRant/issues/50) | 维护升级、本机公证包交付和 2.0.0 正式发布。 | 三平台公开安装包已发布；游戏与视觉由用户验收。 |
 | [#51](https://github.com/liseami/DeepRant/issues/51) | 测连改 Rust 请求，移除前端 fetch / CORS 故障路径；保留可复制安全诊断。 | 真实供应商连接需有效 Key。 |
 | [#52](https://github.com/liseami/DeepRant/issues/52) | LoL 浮窗不依赖 Client / Game 进程白名单；完整 DeepSeek endpoint 可用。 | Windows 游戏现场待验收。 |
 | [#53](https://github.com/liseami/DeepRant/issues/53) | 302.AI OpenAI 兼容预设，技术接入独立实现。 | 不代表接受商务合作。 |
@@ -73,7 +73,13 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 
 主 Agent 执行前端构建、契约检查、原生单测、clippy 与本机包技术核验。用户负责全部视觉与游戏现场验收。子 Agent 不运行 build / test / typecheck，整合后清理 worktree 与中间产物。
 
-本机包沿 CCBaga 的 debug / custom-protocol / 事务重装流程，每次重新生成；优先采用同组织稳定 Developer ID 签名，避免每次编译改变辅助功能身份，无证书才回退临时签名。公开发布由本次用户授权的 release 分支流程触发，沿 CCBaga 的最终字节签名、DMG 布局和安装验收门禁。上一整合提交的 macOS / Windows 原生检查已通过 GitHub Checks；本轮输入与 SQLite 改动、正式安装器和游戏仍需各自验收，不能把单测等同于现场验证。
+开发交付沿 CCBaga 的 debug / custom-protocol / 事务重装流程，优先采用同组织稳定 Developer ID，无证书才回退临时签名。正式交付采用 release 分支、最终字节签名、同款 DMG 布局与安装验收门禁；[发布流水线 38261863210](https://github.com/liseami/DeepRant/actions/runs/38261863210) 的五个 job 全部成功，v2.0.0 固定在实际受测提交 `94434ff31d4f5313fa66f79dff024ca5992b693c`。
+
+三平台前端构建、契约检查、Rust 单测、fmt 与 clippy 均通过。macOS ARM / Intel 应用及 DMG 的 Developer ID 签名、公证装订、票据和 Gatekeeper 验收通过；票据服务暂态错误仅有限退避，最终验收没有跳过。三平台最终更新归档通过官方 updater 的真实字节验证；同一 Windows 安装器在 Windows 2025 / 2022 实际安装、启动与卸载均成功。
+
+主 Agent 下载了全部 10 个公开资产，逐一核对 SHA-256、三平台更新 URL / 签名与五个二进制的 GitHub 来源证明；来源限定本仓库 release 工作流及上述提交。本机已事务安装并启动同字节的 ARM 公证正式版，团队为 `6UB6WM6VQR`，安装前后 SQLite 文档逐字段一致、完整性检查通过，原版录屏与预览图哈希保真。上述技术证据不替代用户的 Pages、游戏和视觉现场验收。
+
+发布后已删除 8 个历史 Release 及其 41 个资产、14 个历史标签和临时 Actions 产物；默认及唯一开发分支为 release，v2.0.0 的 10 个公开资产保留。子 Agent 的任务分支与 worktree 已清理，开发过程的中间编译产物也已移除。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 
