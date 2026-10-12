@@ -1,5 +1,5 @@
 /**
- * [INPUT]: store 输入方式、game_composer 浮窗、模型管道、clipboard-manager 与 enigo；平台 API 提供权限、焦点和修饰键状态。
+ * [INPUT]: store / game_composer / 模型管道、clipboard-manager 与 native_keyboard 主线程注入；平台 API 提供权限、焦点和修饰键状态。
  * [OUTPUT]: 原位翻译/常用语、共享 BusyGuard、Unicode 回填与只含阶段的输入诊断事件。
  * [POS]: 串行输入边界；焦点变更与 AX 读取失败分别保留诊断，安全失败不粘贴；终止后错误才激活主窗口，状态不进入聊天框。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,7 @@ use crate::ai_translator;
 use anyhow::{anyhow, bail, Context, Result};
 use enigo::{
     Direction::{Click, Press, Release},
-    Enigo, Key, Keyboard, Settings,
+    Key, Keyboard,
 };
 use std::{
     sync::{
@@ -102,9 +102,9 @@ impl InputTransaction {
         let revision = platform::clipboard_revision();
         if select_all {
             report_status(&self.app, "copy_select_all", "正在请求全选目标输入文本");
-            shortcut(&self.focus, 'a')?;
+            shortcut(&self.app, &self.focus, 'a')?;
         }
-        shortcut(&self.focus, 'c')?;
+        shortcut(&self.app, &self.focus, 'c')?;
         report_status(
             &self.app,
             "copy_requested",
@@ -140,7 +140,7 @@ impl InputTransaction {
         let mut clipboard = ClipboardRestore::new(&self.app)?;
         clipboard.write(text)?;
         report_status(&self.app, "pasting", "正在粘贴译文");
-        shortcut(&self.focus, 'v')?;
+        shortcut(&self.app, &self.focus, 'v')?;
         // 给目标程序处理粘贴的机会；剪贴板若被用户改写，恢复器会保留用户的新内容。
         std::thread::sleep(PASTE_SETTLE);
         Ok(())
@@ -222,28 +222,41 @@ fn wait_for_modifiers(focus: &FocusWatch) -> Result<()> {
     focus.check()
 }
 
-fn shortcut(focus: &FocusWatch, letter: char) -> Result<()> {
+fn shortcut(app: &AppHandle, focus: &FocusWatch, letter: char) -> Result<()> {
     focus.check()?;
-    let settings = Settings {
-        open_prompt_to_get_permissions: false,
-        ..Settings::default()
-    };
-    let mut enigo = Enigo::new(&settings).map_err(|e| anyhow!("无法注入按键：macOS 请授予辅助功能权限；Windows 请确认目标与 DeepRant 的权限级别一致。{e}"))?;
-    #[cfg(target_os = "macos")]
-    let modifier = Key::Meta;
-    #[cfg(not(target_os = "macos"))]
-    let modifier = Key::Control;
-    enigo.key(modifier, Press)?;
-    let click = enigo.key(Key::Unicode(letter), Click);
-    let release = enigo.key(modifier, Release);
-    click.context("目标程序拒绝按键输入；请改用手动翻译")?;
-    release.context("释放注入的修饰键失败")?;
+    let snapshot = focus.snapshot.clone();
+    let failure = focus.failure.clone();
+    crate::native_keyboard::run(app, move |keyboard| {
+        if failure
+            .lock()
+            .map_err(|_| anyhow!("焦点监视已中断"))?
+            .is_some()
+            || !snapshot.is_current()?
+        {
+            bail!("发送按键前焦点已改变，未继续输入");
+        }
+        #[cfg(target_os = "macos")]
+        let modifier = Key::Meta;
+        #[cfg(not(target_os = "macos"))]
+        let modifier = Key::Control;
+        keyboard.key(modifier, Press)?;
+        let click = keyboard.key(Key::Unicode(letter), Click);
+        let release = keyboard.key(modifier, Release);
+        click.context("目标程序拒绝按键输入")?;
+        release.context("释放注入的修饰键失败")?;
+        Ok(())
+    })?;
     std::thread::sleep(Duration::from_millis(50));
     focus.check()
 }
 
 /// 浮窗只写 Unicode 文本，不修改剪贴板、不选择原文、不发送回车。
-pub(crate) fn type_composed_text(text: &str, check_focus: impl Fn() -> Result<()>) -> Result<()> {
+pub(crate) fn type_composed_text(
+    app: &AppHandle,
+    text: &str,
+    check_focus: impl Fn() -> Result<()> + Send + Sync + 'static,
+) -> Result<()> {
+    let check_focus = Arc::new(check_focus);
     let deadline = Instant::now() + RELEASE_TIMEOUT;
     while platform::modifiers_down() {
         check_focus()?;
@@ -253,17 +266,17 @@ pub(crate) fn type_composed_text(text: &str, check_focus: impl Fn() -> Result<()
         std::thread::sleep(POLL_INTERVAL);
     }
     check_focus()?;
-    let mut enigo = Enigo::new(&Settings {
-        open_prompt_to_get_permissions: false,
-        ..Settings::default()
-    })
-    .map_err(|_| anyhow!("无法输入译文：请检查 macOS 辅助功能权限或 Windows 双方权限级别"))?;
     // CGEvent 的文本载荷以 UTF-16 计数；不拆代理对，短片段之间重新确认目标。
     for chunk in unicode_chunks(text) {
         check_focus().context("焦点已改变，可能已输入部分文字；请检查聊天框后再决定是否重试")?;
-        enigo
-            .text(chunk)
-            .context("系统拒绝文本输入，可能已输入部分文字；请检查游戏聊天框再决定是否重试")?;
+        let chunk = chunk.to_string();
+        let check_focus = check_focus.clone();
+        crate::native_keyboard::run(app, move |keyboard| {
+            check_focus()?;
+            keyboard
+                .text(&chunk)
+                .context("系统拒绝文本输入，可能已输入部分文字；请检查游戏聊天框再决定是否重试")
+        })?;
     }
     Ok(())
 }

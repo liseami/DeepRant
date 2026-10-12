@@ -1,14 +1,14 @@
 /**
- * [INPUT]: 依赖 composer_target 的原应用身份与焦点恢复、shell_helper 的共享输入锁及 Unicode 输入、Tauri 独立 WebView
+ * [INPUT]: 依赖 composer_target 的原应用身份与焦点恢复、shell_helper 的输入锁与主线程键盘边界、Tauri 独立 WebView
  * [OUTPUT]: 提供游戏输入浮窗打开、session 查询、提交与取消 IPC；deeprant://composer-open 只通知对应浮窗
- * [POS]: 不可复制聊天框的输入路径；会话持续占有输入锁，重复快捷键不更换目标，失败保留会话和前端草稿
+ * [POS]: 会话持有原目标与输入锁；目标可跨键盘主线程派发复核，重复热键不更换目标，失败保留草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::{composer_target, shell_helper::BusyGuard, store::AppSettings};
 use anyhow::{anyhow, bail, Context, Result};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
-    Mutex,
+    Arc, Mutex,
 };
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -19,7 +19,7 @@ static SESSION: Mutex<State> = Mutex::new(State::Idle);
 
 struct Session {
     id: u64,
-    target: composer_target::ComposerTarget,
+    target: Arc<composer_target::ComposerTarget>,
     _busy: BusyGuard,
 }
 enum State {
@@ -116,7 +116,7 @@ pub(crate) async fn open(app: &AppHandle) -> Result<()> {
                 .map_err(|_| anyhow!("游戏输入会话被中断，请重启应用"))?;
             *state = State::Active(Session {
                 id,
-                target,
+                target: Arc::new(target),
                 _busy: busy,
             });
         }
@@ -195,8 +195,9 @@ fn finish(app: &AppHandle, session_id: u64, text: Option<String>) -> Result<()> 
         window.hide()?;
         composer_target::restore(&session.target)?;
         if let Some(text) = text {
-            crate::shell_helper::type_composed_text(&text, || {
-                if !session.target.is_current() {
+            let target = session.target.clone();
+            crate::shell_helper::type_composed_text(app, &text, move || {
+                if !target.is_current() {
                     bail!("游戏焦点已改变，停止填入译文；请检查聊天框后重试");
                 }
                 Ok(())

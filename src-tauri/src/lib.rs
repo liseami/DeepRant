@@ -11,6 +11,7 @@ pub mod credentials;
 pub mod game_composer;
 pub mod input_diagnostics;
 pub mod model_presets;
+mod native_keyboard;
 pub mod scenes;
 pub mod shell_helper;
 pub mod shortcut;
