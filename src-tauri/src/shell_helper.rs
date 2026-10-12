@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 store 输入方式、game_composer 游戏浮窗、ai_translator 模型请求、clipboard-manager 与 enigo 原生输入；平台 API 提供焦点及修饰键状态
- * [OUTPUT]: 提供 trans_and_replace_text、send_phrase、共享 BusyGuard、Unicode 填入及 deeprant://input-status 事件
- * [POS]: 快捷键共享串行输入锁；原位操作核验原文和焦点，浮窗回填每个 UTF-16 有界片段检查目标，状态不进入聊天框。
+ * [INPUT]: store 输入方式、game_composer 浮窗、模型管道、clipboard-manager 与 enigo；平台 API 提供权限、焦点和修饰键状态。
+ * [OUTPUT]: 原位翻译/常用语、共享 BusyGuard、Unicode 回填与只含阶段的输入诊断事件。
+ * [POS]: 串行输入边界；焦点变更与 AX 读取失败分别保留诊断，安全失败不粘贴；终止后错误才激活主窗口，状态不进入聊天框。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::ai_translator;
@@ -13,7 +13,7 @@ use enigo::{
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
@@ -28,10 +28,27 @@ static INPUT_BUSY: AtomicBool = AtomicBool::new(false);
 static COPY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub fn report_status(app: &AppHandle, state: &str, message: &str) {
+    crate::input_diagnostics::record(state, message);
     let _ = app.emit(
         "deeprant://input-status",
         serde_json::json!({"state": state, "message": message}),
     );
+    // 正在进行的事务被重复热键拒绝时，保留诊断但不抢焦点、不打断原事务。
+    if state == "error" && !INPUT_BUSY.load(Ordering::Acquire) {
+        log::warn!("输入事务失败：{message}");
+        crate::show_main(app);
+    }
+}
+
+pub(crate) fn accessibility_granted() -> Option<bool> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(platform::accessibility_granted())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -60,7 +77,9 @@ struct InputTransaction {
 }
 impl InputTransaction {
     fn new(app: AppHandle, busy: BusyGuard) -> Result<Self> {
+        report_status(&app, "focus", "正在确认前台输入焦点与系统权限");
         let focus = FocusWatch::start()?;
+        report_status(&app, "waiting_modifiers", "焦点已确认，等待物理修饰键释放");
         wait_for_modifiers(&focus)?;
         Ok(Self {
             app,
@@ -81,9 +100,15 @@ impl InputTransaction {
         clipboard.write(&marker)?;
         let revision = platform::clipboard_revision();
         if select_all {
+            report_status(&self.app, "copy_select_all", "正在请求全选目标输入文本");
             shortcut(&self.focus, 'a')?;
         }
         shortcut(&self.focus, 'c')?;
+        report_status(
+            &self.app,
+            "copy_requested",
+            "复制按键已发送，等待新的剪贴板文本",
+        );
         let deadline = Instant::now() + COPY_TIMEOUT;
         while Instant::now() < deadline {
             self.focus.check()?;
@@ -94,6 +119,11 @@ impl InputTransaction {
                         if text.trim().is_empty() {
                             bail!("未复制到文本，请先选中需要翻译的内容");
                         }
+                        report_status(
+                            &self.app,
+                            "copy_observed",
+                            "已收到新的复制文本，内容不记录到诊断",
+                        );
                         return Ok(text);
                     }
                 }
@@ -324,28 +354,39 @@ impl Drop for ClipboardRestore {
 }
 
 // ---------------------------------------------------------------------------
-// 焦点监视：离开后返回原窗口也取消；一个事务只使用一个短生命周期监视线程
+// 焦点监视：离开后返回也取消；AX 读取错误保持阶段码，不伪装成用户切换窗口
 // ---------------------------------------------------------------------------
 
 struct FocusWatch {
     snapshot: Arc<platform::Focus>,
-    changed: Arc<AtomicBool>,
+    failure: Arc<Mutex<Option<String>>>,
     stop: Arc<AtomicBool>,
     worker: Option<std::thread::JoinHandle<()>>,
 }
+
+fn focus_failure(result: Result<bool>) -> Option<String> {
+    match result {
+        Ok(true) => None,
+        Ok(false) => Some("焦点在操作期间发生变化，已取消自动粘贴；请回到原输入框重试".into()),
+        Err(error) => Some(format!("无法继续核验输入焦点，已取消自动粘贴：{error:#}")),
+    }
+}
+
 impl FocusWatch {
     fn start() -> Result<Self> {
         let snapshot = Arc::new(platform::Focus::capture()?);
-        let changed = Arc::new(AtomicBool::new(false));
+        let failure = Arc::new(Mutex::new(None));
         let stop = Arc::new(AtomicBool::new(false));
-        let (target, was_changed, finished) = (snapshot.clone(), changed.clone(), stop.clone());
+        let (target, failed, finished) = (snapshot.clone(), failure.clone(), stop.clone());
         // ponytail: 40ms 原生焦点轮询；若需要捕获更短的窗口切换，改用平台焦点事件订阅。
         let worker = std::thread::Builder::new()
             .name("deeprant-focus".into())
             .spawn(move || {
                 while !finished.load(Ordering::Acquire) {
-                    if !target.is_current() {
-                        was_changed.store(true, Ordering::Release);
+                    if let Some(message) = focus_failure(target.is_current()) {
+                        if let Ok(mut failure) = failed.lock() {
+                            failure.get_or_insert(message);
+                        }
                         break;
                     }
                     std::thread::sleep(POLL_INTERVAL);
@@ -353,15 +394,26 @@ impl FocusWatch {
             })?;
         Ok(Self {
             snapshot,
-            changed,
+            failure,
             stop,
             worker: Some(worker),
         })
     }
     fn check(&self) -> Result<()> {
-        if self.changed.load(Ordering::Acquire) || !self.snapshot.is_current() {
-            self.changed.store(true, Ordering::Release);
-            bail!("焦点在操作期间发生变化，已取消自动粘贴。请回到原输入框重试或使用手动翻译页。");
+        if let Some(message) = self
+            .failure
+            .lock()
+            .map_err(|_| anyhow!("输入焦点监视被中断，已取消自动粘贴"))?
+            .as_ref()
+        {
+            bail!("{message}");
+        }
+        if let Some(message) = focus_failure(self.snapshot.is_current()) {
+            let mut failure = self
+                .failure
+                .lock()
+                .map_err(|_| anyhow!("输入焦点监视被中断，已取消自动粘贴"))?;
+            bail!("{}", failure.get_or_insert(message));
         }
         Ok(())
     }
@@ -427,8 +479,8 @@ mod platform {
                 })
             }
         }
-        pub fn is_current(&self) -> bool {
-            Self::capture().map(|now| now == *self).unwrap_or(false)
+        pub fn is_current(&self) -> Result<bool> {
+            Self::capture().map(|now| now == *self)
         }
     }
     pub fn modifiers_down() -> bool {
@@ -482,7 +534,7 @@ mod platform {
             }
         }
     }
-    fn attribute(element: Ref, name: &[u8]) -> Option<Owned> {
+    fn attribute(element: Ref, name: &[u8], stage: &str) -> Result<Option<Owned>> {
         unsafe {
             let name = Owned(CFStringCreateWithCString(
                 std::ptr::null(),
@@ -490,16 +542,20 @@ mod platform {
                 0x08000100,
             ) as usize);
             if name.0 == 0 {
-                return None;
+                bail!("macOS 辅助功能读取{stage}失败：无法创建属性名");
             }
             let mut value = std::ptr::null();
-            if AXUIElementCopyAttributeValue(element, name.0 as Ref, &mut value) == 0
-                && !value.is_null()
-            {
-                Some(Owned(value as usize))
-            } else {
-                None
+            let code = AXUIElementCopyAttributeValue(element, name.0 as Ref, &mut value);
+            if code == 0 && !value.is_null() {
+                return Ok(Some(Owned(value as usize)));
             }
+            // 不支持属性/没有值才允许用窗口作目标；权限、超时与其他错误保留阶段码。
+            if matches!(code, -25205 | -25212) {
+                return Ok(None);
+            }
+            bail!(
+                "macOS 辅助功能读取{stage}失败（AXError {code}）；请检查此版本的辅助功能授权并重试"
+            );
         }
     }
     pub struct Focus {
@@ -511,22 +567,30 @@ mod platform {
         pub fn capture() -> Result<Self> {
             // SAFETY: AX Copy/Create 的引用由 Owned 释放；存储整数句柄便于只读跨线程比较。
             unsafe {
-                if AXIsProcessTrusted() == 0 {
-                    bail!("请在 macOS 系统设置 → 隐私与安全性 → 辅助功能中启用 DeepRant，然后重启应用");
+                if !accessibility_granted() {
+                    bail!("此版本 DeepRant 尚未获得辅助功能授权；请在 macOS 系统设置 → 隐私与安全性 → 辅助功能中重新添加或启用 /Applications/DeepRant.app，然后重试");
                 }
                 let system = Owned(AXUIElementCreateSystemWide() as usize);
                 if system.0 == 0 {
                     bail!("无法读取 macOS 输入焦点");
                 }
-                AXUIElementSetMessagingTimeout(system.0 as Ref, 0.25);
-                let application = attribute(system.0 as Ref, b"AXFocusedApplication\0")
-                    .ok_or_else(|| anyhow!("无法读取前台应用，请使用手动翻译页"))?;
-                let target = attribute(application.0 as Ref, b"AXFocusedUIElement\0")
-                    .or_else(|| attribute(application.0 as Ref, b"AXFocusedWindow\0"))
-                    .ok_or_else(|| anyhow!("当前程序未提供可确认的输入焦点，请切换游戏输入浮窗"))?;
+                let code = AXUIElementSetMessagingTimeout(system.0 as Ref, 0.25);
+                if code != 0 {
+                    bail!("macOS 辅助功能设置焦点查询超时失败（AXError {code}）");
+                }
+                let application =
+                    attribute(system.0 as Ref, b"AXFocusedApplication\0", "前台应用")?.ok_or_else(
+                        || anyhow!("macOS 辅助功能没有返回前台应用（AXFocusedApplication）"),
+                    )?;
+                let target = match attribute(application.0 as Ref, b"AXFocusedUIElement\0", "输入控件")? {
+                    Some(target) => target,
+                    None => attribute(application.0 as Ref, b"AXFocusedWindow\0", "前台窗口")?
+                        .ok_or_else(|| anyhow!("当前程序未提供可确认的输入控件或窗口（AXFocusedUIElement / AXFocusedWindow）"))?,
+                };
                 let mut pid = 0;
-                if AXUIElementGetPid(application.0 as Ref, &mut pid) != 0 {
-                    bail!("无法确认前台应用身份");
+                let code = AXUIElementGetPid(application.0 as Ref, &mut pid);
+                if code != 0 {
+                    bail!("macOS 辅助功能读取前台进程身份失败（AXError {code}）");
                 }
                 Ok(Self {
                     application,
@@ -535,15 +599,17 @@ mod platform {
                 })
             }
         }
-        pub fn is_current(&self) -> bool {
-            Self::capture()
-                .map(|now| unsafe {
-                    self.pid == now.pid
-                        && CFEqual(self.application.0 as Ref, now.application.0 as Ref) != 0
-                        && CFEqual(self.target.0 as Ref, now.target.0 as Ref) != 0
-                })
-                .unwrap_or(false)
+        pub fn is_current(&self) -> Result<bool> {
+            Self::capture().map(|now| unsafe {
+                self.pid == now.pid
+                    && CFEqual(self.application.0 as Ref, now.application.0 as Ref) != 0
+                    && CFEqual(self.target.0 as Ref, now.target.0 as Ref) != 0
+            })
         }
+    }
+    pub fn accessibility_granted() -> bool {
+        // SAFETY: 只查询本进程当前授权，不显示授权提示，不读取任何文档属性。
+        unsafe { AXIsProcessTrusted() != 0 }
     }
     pub fn modifiers_down() -> bool {
         unsafe { CGEventSourceFlagsState(1) & ((1 << 17) | (1 << 18) | (1 << 19) | (1 << 20)) != 0 }
@@ -587,8 +653,8 @@ mod platform {
         pub fn capture() -> Result<Self> {
             bail!("此平台尚未提供安全的原生焦点校验，请使用手动翻译页");
         }
-        pub fn is_current(&self) -> bool {
-            false
+        pub fn is_current(&self) -> Result<bool> {
+            Ok(false)
         }
     }
     pub fn modifiers_down() -> bool {
@@ -605,6 +671,14 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn focus_failures_keep_ax_errors_distinct_from_real_focus_changes() {
+        assert!(focus_failure(Ok(true)).is_none());
+        assert!(focus_failure(Ok(false)).unwrap().contains("发生变化"));
+        let failure = focus_failure(Err(anyhow!("读取输入控件失败（AXError -25204）"))).unwrap();
+        assert!(failure.contains("AXError -25204"));
+        assert!(!failure.contains("发生变化"));
+    }
     #[test]
     fn unicode_input_preserves_surrogate_pairs_and_bounded_event_payloads() {
         let text = "🙂😀😅😉😊😂😍😎🤓🥳你好 team — go mid";

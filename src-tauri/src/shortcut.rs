@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 store 的设置校验与持久化、global-shortcut 的系统注册、shell_helper 的输入事务及状态事件
- * [OUTPUT]: 提供 init_shortcuts、keys_to_hotkey、commit_shortcut_settings、change_shortcut_settings、get_shortcut_status、set_shortcuts_paused
- * [POS]: 全局快捷键的唯一注册边界。设置与回调完整切换，注册或保存失败恢复旧表；释放事件才调度输入，录制期间暂停回调。
+ * [INPUT]: store 的设置校验与持久化、global-shortcut 的系统注册、shell_helper 的输入事务及内存状态事件。
+ * [OUTPUT]: 快捷键录制/注册事务、真实注册诊断和 Pressed/Released 阶段；释放事件才调度输入。
+ * [POS]: 唯一注册边界；注册或保存失败恢复旧表，录制期间使旧周期失效，不把每次按键写入磁盘日志。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::shell_helper::{report_status, send_phrase, trans_and_replace_text};
@@ -216,6 +216,15 @@ fn register_binding(app: &AppHandle, binding: &Binding) -> Result<(), String> {
         .on_shortcut(binding.shortcut, move |app, _, event| {
             if event.state() == ShortcutState::Pressed {
                 let mode = SHORTCUT_MODE.load(Ordering::Acquire);
+                report_status(
+                    app,
+                    "shortcut_pressed",
+                    if mode & 1 == 0 {
+                        "已收到快捷键按下事件，等待释放"
+                    } else {
+                        "已收到快捷键按下事件，录制期间暂停输入"
+                    },
+                );
                 armed.store(
                     if mode & 1 == 0 {
                         mode.wrapping_add(1)
@@ -227,10 +236,16 @@ fn register_binding(app: &AppHandle, binding: &Binding) -> Result<(), String> {
                 return;
             }
             let mode = SHORTCUT_MODE.load(Ordering::Acquire);
+            report_status(app, "shortcut_released", "已收到快捷键释放事件");
             if event.state() != ShortcutState::Released
                 || mode & 1 != 0
                 || armed.swap(0, Ordering::AcqRel) != mode.wrapping_add(1)
             {
+                report_status(
+                    app,
+                    "shortcut_ignored",
+                    "录制暂停或按键周期已过期，本次快捷键未执行",
+                );
                 return;
             }
             let app = app.clone();
@@ -379,6 +394,13 @@ pub fn get_shortcut_status() -> Option<String> {
         .lock()
         .map(|registry| registry.last_error.clone())
         .unwrap_or_else(|_| Some("快捷键状态异常，请重启 DeepRant".into()))
+}
+
+pub(crate) fn shortcuts_registered() -> bool {
+    REGISTRY
+        .lock()
+        .map(|registry| !registry.bindings.is_empty())
+        .unwrap_or(false)
 }
 
 pub fn set_shortcuts_paused(paused: bool) {
