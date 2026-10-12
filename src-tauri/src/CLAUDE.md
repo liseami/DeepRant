@@ -5,7 +5,8 @@ lib.rs: Tauri 生命周期与 IPC；Ready 先显示主窗口再异步初始化�
 input_diagnostics.rs: 实时权限与真实注册状态、最近输入的只内存快照；固定系统设置入口不代替用户授权，热键和复制阶段不进磁盘日志。
 main.rs: 桌面程序入口，只调用库运行函数。
 credentials.rs: 系统钥匙串凭据唯一边界，以协议及端点隔离 Key；仅主窗口模型编辑可按服务查看，不进入公开设置或诊断。
-store.rs: 原子 JSON 持久化与升级迁移；校验输入方式/通用提示词/模型推理开关，读错保留原文件，凭据迁移先验证再清明文。
+store.rs: 设置校验与升级迁移；所有设置经单一锁写入 SQLite，凭据先迁移验证、数据库提交后才清除旧 JSON 明文。
+settings_db.rs: 单行 JSON 文档的 SQLite 事务，保留未知根字段；首次读取旧文件，之后数据库唯一权威，待办标记让明文清理可重试。
 ai_translator.rs: 模型请求与最终文本解析；现代 OpenAI 使用 developer/完成预算，已核准本地 Qwen 默认关闭思考，旧模型兼容不污染其他协议。
 model_presets.rs: 当前轻量模型与旧标签迁移；OpenAI Luna、本地 Qwen3.5、腾讯分区、硅基与302使用官方端点和精确 ID。
 native_keyboard.rs: macOS 键盘创建、布局查询及事件注入只在主线程；后台误调用先拒绝，网络和等待不占主线程。

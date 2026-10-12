@@ -39,6 +39,7 @@ tauri-plugin-process = "2"
 tauri-plugin-log = "2"
 log = "0.4"
 tempfile = "3.27.0"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
