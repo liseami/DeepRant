@@ -1,6 +1,6 @@
 # [INPUT]: release 分支 commit、锁定依赖与仓库签名凭据。
 # [OUTPUT]: 双架构公证 DMG、Windows 安装器、签名更新与固定 commit 的 Release。
-# [POS]: CCBaga 式构建/发布权限分离，全部平台和安装验证通过后才公开。
+# [POS]: CCBaga 式构建/发布权限分离，失败后保留 Rust 编译缓存；全部平台和安装验证通过后才公开。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 name: Release
 on:
@@ -54,6 +54,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
           shared-key: ${{ matrix.target }}
+          cache-on-failure: true
       - name: Verify before signing
         shell: bash
         run: |
