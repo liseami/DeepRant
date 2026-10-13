@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 composer_target 的原应用身份与焦点恢复、shell_helper 的输入锁与主线程键盘边界、Tauri 独立 WebView
- * [OUTPUT]: 游戏输入浮窗打开、会话查询/翻译/提交/取消 IPC；单行规范与过期会话拒绝由原生执行
+ * [OUTPUT]: 游戏输入浮窗打开、会话查询/翻译/提交/取消 IPC；自动游戏输入为 LoL/星际公民使用浮窗，显式模式优先
  * [POS]: 会话持有原目标与输入锁；目标可跨键盘主线程派发复核，重复热键不更换目标，失败保留草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,7 +34,9 @@ pub struct SessionInfo {
 
 pub(crate) fn should_compose(settings: &AppSettings) -> bool {
     settings.input_mode == "compose"
-        || (settings.input_mode == "auto" && !settings.daily_mode && settings.game_scene == "lol")
+        || (settings.input_mode == "auto"
+            && !settings.daily_mode
+            && matches!(settings.game_scene.as_str(), "lol" | "star_citizen"))
 }
 
 fn current_id() -> Result<u64> {
@@ -314,18 +316,33 @@ pub(crate) fn close_requested(app: &AppHandle) {
 mod tests {
     use super::*;
     #[test]
-    fn composer_routes_only_explicit_mode_or_game_lol_and_never_accepts_send_controls() {
-        let mut settings = AppSettings {
-            game_scene: "lol".into(),
-            ..AppSettings::default()
-        };
-        assert!(should_compose(&settings));
-        settings.daily_mode = true;
-        assert!(!should_compose(&settings));
-        settings.input_mode = "compose".into();
-        assert!(should_compose(&settings));
-        settings.input_mode = "replace".into();
-        assert!(!should_compose(&settings));
+    fn composer_routes_star_citizen_and_respects_daily_and_explicit_modes() {
+        for (mode, daily, scene, expected) in [
+            ("auto", false, "lol", true),
+            ("auto", false, "star_citizen", true),
+            ("auto", false, "csgo", false),
+            ("auto", false, "custom", false),
+            ("auto", true, "lol", false),
+            ("auto", true, "star_citizen", false),
+            ("replace", false, "lol", false),
+            ("replace", false, "star_citizen", false),
+            ("replace", true, "star_citizen", false),
+            ("compose", false, "star_citizen", true),
+            ("compose", true, "star_citizen", true),
+            ("compose", false, "csgo", true),
+        ] {
+            let settings = AppSettings {
+                input_mode: mode.into(),
+                daily_mode: daily,
+                game_scene: scene.into(),
+                ..AppSettings::default()
+            };
+            assert_eq!(should_compose(&settings), expected, "{mode}/{daily}/{scene}");
+        }
+    }
+
+    #[test]
+    fn composer_never_accepts_send_controls() {
         for invalid in [
             "",
             " ",
