@@ -39,13 +39,13 @@ Use **About → Check for updates** in the app, then confirm to download, instal
 1. **Add your Key:** if no DeepSeek Key is saved, the banner at the top lets you enter and save one or visit the [DeepSeek platform](https://platform.deepseek.com/). View, show/hide and edit your current Key in AI models.
 2. **Allow input:** on macOS, click **Open Accessibility settings** in the app and allow DeepRant. On Windows, run DeepRant and the game at matching privilege levels.
 3. **Prepare your game:** select translation languages, game context and shortcut on Home; choose automatic, professional or toxic expression in Modes.
-4. **Translate:** open game chat, write your message, put the cursor at the end and press the shortcut (`⌘ + T` by default on macOS). In-place input shows **翻译中...** while working, then replaces it with the translation; request failures restore the original if the input is unchanged.
+4. **Translate:** for in-place mode, write your message, put the cursor at the end and press the shortcut (`⌘ + T` by default on macOS); the translating placeholder is replaced with your translation. For Star Citizen / LoL in automatic mode, open an empty chat field, press the shortcut, then write, translate and confirm insertion in the message window.
 5. **Send yourself:** check the result, then press Enter. DeepRant does not send messages for you.
 
 | Input method | How to use it |
 | --- | --- |
 | **In-place translation** | For chat boxes that support copying. Select backward to the start of the current line, copy, insert the placeholder, then verify focus and placeholder before replacement. New edits are preserved. |
-| **Game input window** | For chat boxes that cannot copy; automatic mode uses this for LoL. Open an empty chat box, trigger the shortcut, write in the window, translate, edit and confirm insertion. |
+| **Game input window** | Automatic mode uses this for Star Citizen / LoL, without relying on chat-box copying. Open an empty chat box, trigger the shortcut, write in the window, translate, edit and confirm insertion. |
 | **Daily mode** | Translates already-selected text. In document apps such as Pages, select the passage first. |
 
 The input window supports `Ctrl / ⌘ + Enter` to translate or insert, and `Esc` to cancel. For restricted inputs, use the translation helper in Modes and copy the result manually.

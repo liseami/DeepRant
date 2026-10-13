@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 composer_target 的原应用身份与焦点恢复、shell_helper 的输入锁与主线程键盘边界、Tauri 独立 WebView
  * [OUTPUT]: 游戏输入浮窗打开、会话查询/翻译/提交/取消 IPC；自动游戏输入为 LoL/星际公民使用浮窗，显式模式优先
- * [POS]: 会话持有原目标与输入锁；目标可跨键盘主线程派发复核，重复热键不更换目标，失败保留草稿
+ * [POS]: 原生规范单行并拒绝旧编号；会话持有原目标与输入锁，重复热键不更换目标，失败保留草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use crate::{composer_target, shell_helper::BusyGuard, store::AppSettings};
@@ -337,7 +337,11 @@ mod tests {
                 game_scene: scene.into(),
                 ..AppSettings::default()
             };
-            assert_eq!(should_compose(&settings), expected, "{mode}/{daily}/{scene}");
+            assert_eq!(
+                should_compose(&settings),
+                expected,
+                "{mode}/{daily}/{scene}"
+            );
         }
     }
 

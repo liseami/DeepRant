@@ -61,6 +61,7 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#61](https://github.com/liseami/DeepRant/issues/61) | macOS LoL 浮窗用原应用 / 窗口身份恢复，可缺少 AX 聊天控件，辅助功能权限仍必要。 | 用户负责游戏与视觉现场验收。 |
 | [#62](https://github.com/liseami/DeepRant/issues/62) | Rust 明确区分空响应 / 非 JSON / 无最终文本，不再直接调用前端 Response.json。 | 响应解析有原生单测。 |
 | [#63](https://github.com/liseami/DeepRant/issues/63) | 物理 code 录制，小键盘数字 / F 键单键，释放修饰键后执行，应用内冲突回滚。 | NumLock 必须开启；Windows 无法区分 NumpadEnter / Equal，明确拒绝。 |
+| [#64](https://github.com/liseami/DeepRant/issues/64) | 2.0.1 为星际公民的自动游戏输入默认选择原生浮窗，不依赖聊天框复制；保留船名 / 航点语境，确认后核验原窗口与焦点再回填，消息由用户发送。 | 12 组路由回归覆盖星际公民 / LoL、日常及显式模式覆盖；游戏现场与 EAC 兼容由用户验收，不声称已获白名单或认证。 |
 
 ## PR 诉求独立吸收
 
@@ -80,6 +81,8 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 主 Agent 下载了全部 10 个公开资产，逐一核对 SHA-256、三平台更新 URL / 签名与五个二进制的 GitHub 来源证明；来源限定本仓库 release 工作流及上述提交。本机已事务安装并启动同字节的 ARM 公证正式版，团队为 `6UB6WM6VQR`，安装前后 SQLite 文档逐字段一致、完整性检查通过，原版录屏与预览图哈希保真。上述技术证据不替代用户的 Pages、游戏和视觉现场验收。
 
 发布后已删除 8 个历史 Release 及其 41 个资产、14 个历史标签和临时 Actions 产物；默认及唯一开发分支为 release，v2.0.0 的 10 个公开资产保留。子 Agent 的任务分支与 worktree 已清理，开发过程的中间编译产物也已移除。
+
+2026-10-13 追加 #64：RSI 的 [EAC 官方说明](https://support.robertsspaceindustries.com/hc/en-us/articles/4412282759191-Easy-Anti-Cheat)明确描述了游戏文件修改与第三方软件限制。这里复用独立浮窗和操作系统输入，不改变游戏文件或 EAC 设置；若游戏拒绝模拟输入，保留可编辑译文供手动复制。2.0.1 正式交付与该问题的回复状态以 Releases / Issue 链接为准。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 

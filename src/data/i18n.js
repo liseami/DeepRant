@@ -83,7 +83,7 @@ const messages = {
   hotkeySaved: ['快捷键已更新', 'Shortcut updated'],
   permissions: ['输入与权限', 'Input and permissions'],
   permissionsHelp: ['macOS 请在系统设置 → 隐私与安全性 → 辅助功能中允许 DeepRant。Windows 中游戏与 DeepRant 的权限级别需一致。', 'On macOS, allow DeepRant in System Settings → Privacy & Security → Accessibility. On Windows, the game and DeepRant must run at the same privilege level.'],
-  inputHelp: ['原位翻译：输入内容后按快捷键，日常模式先选中文字。输入浮窗：先打开空聊天框，再按快捷键写消息并回填；LoL 自动使用浮窗。', 'Inline translation: type, then press your shortcut; select text first in everyday mode. Message window: open an empty chat field, press your shortcut, write, and insert. LoL uses the message window automatically.'],
+  inputHelp: ['原位翻译：输入内容后按快捷键，日常模式先选中文字。输入浮窗：先打开空聊天框，再按快捷键写消息并确认回填；星际公民和 LoL 自动使用浮窗，消息由你发送。', 'Inline translation: type, then press your shortcut; select text first in everyday mode. Message window: open an empty chat field, press your shortcut, write and confirm insertion. Star Citizen and LoL use the message window automatically; you send the message yourself.'],
   manualTitle: ['手动翻译与润色', 'Translate and rewrite'],
   manualDescription: ['在受限游戏输入框和网页中，也可以在这里翻译，再复制结果。使用主页选定的语言、语境和风格。', 'Translate here and copy the result for restricted game fields or websites. Uses the languages, context, and tone selected on Home.'],
   inputText: ['输入原文', 'Source text'],

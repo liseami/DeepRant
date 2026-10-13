@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Cromma UI、快捷键设置、录制器及 Rust 实际权限 / 注册 / 输入阶段诊断
  * [OUTPUT]: 提供输入方式、快捷键和实时诊断；权限设置与无法回滚原文的显式复制入口
- * [POS]: 输入准备入口；状态来自实际运行中的原生进程，不从曾经授权或按键名称推断可用性
+ * [POS]: 输入准备入口；游戏自动路由归 Rust，界面只说明流程；权限与阶段来自实际原生进程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -58,13 +58,13 @@ export default function HotkeyCard() {
         <div className="space-y-3">
           <Select aria-label={english ? 'Input workflow' : '输入方式'} value={settings.input_mode || 'auto'} size="medium"
             onValueChange={input_mode => updateSettings({ input_mode }).catch(showError)} items={[
-              { value: 'auto', label: english ? 'Automatic · LoL uses message window' : '自动 · LoL 使用输入浮窗' },
+              { value: 'auto', label: english ? 'Automatic · game defaults' : '自动 · 按游戏适配' },
               { value: 'replace', label: english ? 'Translate inside the chat field' : '原位翻译' },
               { value: 'compose', label: english ? 'In-game message window' : '游戏输入浮窗' },
             ]} />
           <HotkeyRecorder hotkey={settings.trans_hotkey} label={t('hotkey')}
             onSave={keys => runCommand('update_translator_shortcut', { keys })} />
-          <p className="text-xs leading-relaxed text-muted-foreground">{english ? 'For the message window, open an empty chat field before pressing your shortcut. It inserts text without sending.' : '浮窗方式请先打开空聊天框，再按快捷键；回填后不会自动发送。'}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{english ? 'Star Citizen and LoL use the message window automatically. Open an empty chat field, press your shortcut, write and confirm insertion, then send the message yourself.' : '星际公民和 LoL 自动使用输入浮窗。先打开空聊天框，再按快捷键写消息并确认回填，最后自己发送。'}</p>
           <p className="text-xs leading-relaxed text-muted-foreground">{english ? 'In Pages or other documents, use Everyday mode and select the text to translate.' : 'Pages 等文档软件请切到日常模式，先选中要翻译的文字。'}</p>
         </div>
       </div>
