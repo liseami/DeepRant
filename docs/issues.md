@@ -10,7 +10,7 @@
 
 ## 架构落点
 
-Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框使用原位事务：游戏向前选中当前发言，日常只处理原选区；确认复制后显示翻译占位，完成或失败时核对占位与焦点再替换/恢复，不覆盖用户新编辑。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
+Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框使用原位事务：游戏向前选中当前发言，日常只处理原选区；确认复制后显示翻译占位，完成或失败时核对占位与焦点再替换/恢复，不覆盖用户新编辑。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 与星际公民的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
 
 所有输入方式共用语言、表达风格、通用提示词和术语表。API 连接测试与翻译共用原生请求，凭据存入系统凭据库；诊断只含服务名、协议、模型、耗时与脱敏错误。普通模型预算 2048 token / 60 秒，通用推理兼容预算 16384 token / 120 秒，仅解析最终文本；轻量预设为官方 OpenAI `gpt-6-luna` 与本地 Qwen3.5 4B，不再展示专用 R1 入口。官方 OpenAI 默认禁用思考、兼容开启使用低推理强度，非官方兼容端点保留单 user 回合以支持旧本地模型；Anthropic 请求不受这些扩展字段影响。
 
@@ -82,7 +82,9 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 
 发布后已删除 8 个历史 Release 及其 41 个资产、14 个历史标签和临时 Actions 产物；默认及唯一开发分支为 release，v2.0.0 的 10 个公开资产保留。子 Agent 的任务分支与 worktree 已清理，开发过程的中间编译产物也已移除。
 
-2026-10-13 追加 #64：RSI 的 [EAC 官方说明](https://support.robertsspaceindustries.com/hc/en-us/articles/4412282759191-Easy-Anti-Cheat)明确描述了游戏文件修改与第三方软件限制。这里复用独立浮窗和操作系统输入，不改变游戏文件或 EAC 设置；若游戏拒绝模拟输入，保留可编辑译文供手动复制。2.0.1 正式交付与该问题的回复状态以 Releases / Issue 链接为准。
+2026-10-13 追加 #64：RSI 的 [EAC 官方说明](https://support.robertsspaceindustries.com/hc/en-us/articles/4412282759191-Easy-Anti-Cheat)明确描述了游戏文件修改与第三方软件限制。这里复用独立浮窗和操作系统输入，不改变游戏文件或 EAC 设置；若游戏拒绝模拟输入，保留可编辑译文供手动复制。[2.0.1](https://github.com/liseami/DeepRant/releases/tag/v2.0.1) 已通过 [Actions 38346898018](https://github.com/liseami/DeepRant/actions/runs/38346898018) 发布，标签固定受测提交 `5ef17c46351234094d9a0e44ee750dc7bf4a0b15`。原生 24 项测试通过；10 个公开资产的哈希、三平台更新清单及 5 个二进制来源证明均已核验，本机已安装并启动同字节 ARM 正式包，签名团队不变，SQLite 设置和原录屏完整保留。[#64](https://github.com/liseami/DeepRant/issues/64) 已说明操作步骤及现场验收边界后回复关闭。
+
+该发布从首次启动到最终公开共 24 分 15 秒；Intel job 为 16 分 28 秒，ARM 因 Apple 票据网络错误仅重跑失败平台，复用 Windows / Intel 产物。对照 CCBaga 补齐 `cache-on-failure: true`，使失败后仍保存 Rust 编译缓存；修改已通过 actionlint，不为同版本缓存配置重跑整套发布。后续耗时仍取决于编译缓存命中、runner 排队与公证服务。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 
