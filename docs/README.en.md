@@ -52,7 +52,7 @@ The input window supports `Ctrl / ⌘ + Enter` to translate or insert, and `Esc`
 
 ## Make it yours
 
-- **Game context:** LoL, Dota 2, CS2, Valorant and more, plus custom scenes, terminology and shared instructions.
+- **Game context:** Star Citizen, LoL, Dota 2, CS2, Valorant and more, plus custom scenes, terminology and shared instructions.
 - **Languages and tone:** bidirectional translation and rewriting; West Coast battle / diss in Trash talk, editable custom instructions and the complete effective prompt. Switch the interface independently between Chinese and English.
 - **Model choice:** DeepSeek, OpenAI-compatible services, Anthropic, Tencent TokenHub, SiliconFlow, 302.AI or local Ollama without a Key.
 - **Quick phrases:** add, edit and delete phrases; configure individual shortcuts and switches, including numpad digits and function keys.
