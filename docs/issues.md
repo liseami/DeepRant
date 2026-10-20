@@ -88,6 +88,8 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 
 该发布从首次启动到最终公开共 24 分 15 秒；Intel job 为 16 分 28 秒，ARM 因 Apple 票据网络错误仅重跑失败平台，复用 Windows / Intel 产物。对照 CCBaga 补齐 `cache-on-failure: true`，使失败后仍保存 Rust 编译缓存；修改已通过 actionlint，不为同版本缓存配置重跑整套发布。后续耗时仍取决于编译缓存命中、runner 排队与公证服务。
 
+2026-10-19 追加 #66 / #67：[2.0.2](https://github.com/liseami/DeepRant/releases/tag/v2.0.2) 已通过 [Actions 39366145453](https://github.com/liseami/DeepRant/actions/runs/39366145453) 发布，标签固定受测提交 `23ed5d019172cf2a126055366f87605a99886a04`。三平台构建、Windows 兼容验收与发布五个 job 全部成功，首次推送到公开共 17 分 14 秒。本机先通过 fmt、25 项原生单测、clippy、7 项契约测试与发布脚本测试；发布后下载 10 个公开资产，SHA-256 全部一致，`latest.json` 为 2.0.2 且三平台更新签名与 `.sig` 一致，3 个安装包均有本仓库发布工作流的来源证明。[#66](https://github.com/liseami/DeepRant/issues/66) 与 [#67](https://github.com/liseami/DeepRant/issues/67) 已写明操作步骤与 http 明文边界后按 completed 关闭；深色视觉与局域网中转现场由用户验收。
+
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
