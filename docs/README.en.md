@@ -53,8 +53,8 @@ The input window supports `Ctrl / ⌘ + Enter` to translate or insert, and `Esc`
 ## Make it yours
 
 - **Game context:** Star Citizen, LoL, Dota 2, CS2, Valorant and more, plus custom scenes, terminology and shared instructions.
-- **Languages and tone:** bidirectional translation and rewriting; West Coast battle / diss in Trash talk, editable custom instructions and the complete effective prompt. Switch the interface independently between Chinese and English.
-- **Model choice:** DeepSeek, OpenAI-compatible services, Anthropic, Tencent TokenHub, SiliconFlow, 302.AI or local Ollama without a Key.
+- **Languages and tone:** bidirectional translation and rewriting; West Coast battle / diss in Trash talk, editable custom instructions and the complete effective prompt. Switch the interface independently between Chinese and English, and let the appearance follow the system or stay light / dark.
+- **Model choice:** DeepSeek, OpenAI-compatible services, Anthropic, Tencent TokenHub, SiliconFlow, 302.AI or local Ollama without a Key; a self-hosted LAN relay can use a plain http URL such as `http://192.168.1.20:3000`.
 - **Quick phrases:** add, edit and delete phrases; configure individual shortcuts and switches, including numpad digits and function keys.
 
 Rust owns translation, shortcuts, clipboard and system operations; the interface owns input and presentation. All settings stay in local SQLite, with migration from older configurations. Keys stay in the system credential vault; viewing returns a Key only to the current model editor, never the database or logs. Translation requests go to your chosen model service.

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 store 的已校验设置、credentials 的端点凭据与 translation_prompt 的完整生效提示词
  * [OUTPUT]: 提供手动翻译、输入事务翻译与连接测试；所有翻译路径使用可查看的同源提示词
- * [POS]: 共用原生 HTTP 边界；现代 OpenAI 参数、Ollama 思考控制与旧模型兼容在此收口，错误不回显凭据
+ * [POS]: 共用原生 HTTP 边界；公网端点强制 Key，本机 / 局域网 Key 可选；现代 OpenAI 参数、Ollama 思考控制与旧模型兼容在此收口，错误不回显凭据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::AppHandle;
 
-use crate::store::{is_loopback, ModelConfig};
+use crate::store::{is_loopback, key_optional, ModelConfig};
 use crate::translation_prompt::system_prompt;
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
@@ -374,8 +374,8 @@ async fn request(app: &AppHandle, text: &str, connection_test: bool) -> Result<S
         let settings = crate::store::get_settings(&handle)?;
         let url = reqwest::Url::parse(&settings.custom_model.api_url)
             .map_err(|_| anyhow!("API 地址无效，请重新保存模型配置"))?;
-        let local = is_loopback(&url);
-        let secret = if local && !settings.custom_model.has_api_key {
+        let optional = key_optional(&url);
+        let secret = if optional && !settings.custom_model.has_api_key {
             None
         } else {
             crate::credentials::read(
@@ -383,8 +383,8 @@ async fn request(app: &AppHandle, text: &str, connection_test: bool) -> Result<S
                 &settings.custom_model.protocol,
             )?
         };
-        if !local && secret.as_deref().is_none_or(|key| key.trim().is_empty()) {
-            bail!("请先在模型设置中保存此供应商的 API Key；本地 Ollama 无需 Key");
+        if !optional && secret.as_deref().is_none_or(|key| key.trim().is_empty()) {
+            bail!("请先在模型设置中保存此供应商的 API Key；本机或局域网服务可按需填写");
         }
         Ok((settings, secret))
     })

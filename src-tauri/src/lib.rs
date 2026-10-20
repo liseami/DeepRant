@@ -1,6 +1,6 @@
 /**
  * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、模型与游戏输入管道、input_diagnostics 的权限和阶段快照。
- * [OUTPUT]: 设置/翻译/输入诊断 IPC 与仅主窗口的 Key 查看；Ready 先激活主窗口，再异步初始化凭据与快捷键。
+ * [OUTPUT]: 设置/翻译/输入诊断 IPC 与仅主窗口的 Key 查看；启动先套用已存外观，Ready 先激活主窗口，再异步初始化凭据与快捷键。
  * [POS]: 仅编排边界模块；主线程不等待 Keychain，输入失败显示主窗口，浮窗关闭取消；警告日志不记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -47,7 +47,9 @@ async fn update_settings(
     patch: serde_json::Value,
 ) -> Result<store::AppSettings, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        store::update_settings(&app_handle, patch).map_err(|e| e.to_string())
+        let settings = store::update_settings(&app_handle, patch).map_err(|e| e.to_string())?;
+        desktop_services::apply_appearance(&app_handle, &settings.appearance);
+        Ok(settings)
     })
     .await
     .map_err(|_| "设置任务被中断".to_string())?
@@ -281,6 +283,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            desktop_services::apply_appearance(
+                app.handle(),
+                &store::saved_appearance(app.handle()),
+            );
             tray::create_tray(app.handle())?;
             Ok(())
         })

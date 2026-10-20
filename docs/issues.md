@@ -62,6 +62,8 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#62](https://github.com/liseami/DeepRant/issues/62) | Rust 明确区分空响应 / 非 JSON / 无最终文本，不再直接调用前端 Response.json。 | 响应解析有原生单测。 |
 | [#63](https://github.com/liseami/DeepRant/issues/63) | 物理 code 录制，小键盘数字 / F 键单键，释放修饰键后执行，应用内冲突回滚。 | NumLock 必须开启；Windows 无法区分 NumpadEnter / Equal，明确拒绝。 |
 | [#64](https://github.com/liseami/DeepRant/issues/64) | 2.0.1 为星际公民的自动游戏输入默认选择原生浮窗，不依赖聊天框复制；保留船名 / 航点语境，确认后核验原窗口与焦点再回填，消息由用户发送。 | 12 组路由回归覆盖星际公民 / LoL、日常及显式模式覆盖；游戏现场与 EAC 兼容由用户验收，不声称已获白名单或认证。 |
+| [#66](https://github.com/liseami/DeepRant/issues/66) | 2.0.2 侧栏新增系统 / 浅色 / 深色外观，默认跟随系统；偏好存 SQLite，Rust 启动时只读数据库并下发应用级原生主题，标题栏、主窗口与浮窗 WebView 同步，前端只跟随 prefers-color-scheme 拨动 html.dark。 | 设置校验与 patch 有原生单测；深色视觉由用户验收。 |
+| [#67](https://github.com/liseami/DeepRant/issues/67) | 2.0.2 Base URL 对回环与私有网段（RFC 1918、链路本地、CGNAT 100.64/10、IPv6 ULA / 链路本地、`*.local`）接受 http，Key 可选并显示明文提示；公网仍只接受 https 且必须有 Key，不跟随重定向。 | 17 组地址分类回归；普通域名不经 DNS 解析判断，指向内网的公网域名仍需 https；局域网中转现场由用户验收。 |
 
 ## PR 诉求独立吸收
 

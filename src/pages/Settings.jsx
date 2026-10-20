@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cromma UI / Pika、公开模型设置、共享 Key 读取字段、供应商预设、Rust 服务分类/预设/测连/诊断复制
- * [OUTPUT]: 提供当前模型配置、Key 查看显隐与编辑、通用推理预算及可复制的安全连接诊断
+ * [OUTPUT]: 提供当前模型配置、Key 查看显隐与编辑、局域网 Key 可选提示、通用推理预算及可复制的安全连接诊断
  * [POS]: 模型配置入口；凭据只在局部字段存在，切换服务立即清理；服务分类与诊断由 Rust 生成，前端只显示原生结果和编辑草稿
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -35,7 +35,8 @@ export default function Settings() {
         }).catch(() => { if (active) setEndpointInfo(null); });
         return () => { active = false; };
     }, [draft.api_url, draft.protocol]);
-    const isLocal = endpointInfo?.apiUrl === draft.api_url && endpointInfo?.protocol === draft.protocol && endpointInfo.is_local;
+    const currentInfo = endpointInfo?.apiUrl === draft.api_url && endpointInfo?.protocol === draft.protocol ? endpointInfo : null;
+    const isLocal = Boolean(currentInfo?.is_local);
     const hasKey = model.has_api_key && draft.api_url === model.api_url && draft.protocol === model.protocol;
     const credential = useApiKey(draft.api_url, draft.protocol, hasKey && !isLocal);
     const change = (field, value) => setDraft(current => ({ ...current, [field]: value }));
@@ -129,7 +130,7 @@ export default function Settings() {
                                 <Checkbox checked={Boolean(draft.reasoning_model)} onCheckedChange={value => change('reasoning_model', value === true)} />
                                 <span>{chinese ? '允许模型思考' : 'Allow model reasoning'}<span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{chinese ? '开启后为推理预留更多输出空间和等待时间。游戏聊天默认关闭，优先快速返回译文。' : 'Reserve more output space and time for reasoning. Keep off for quicker game translations.'}</span></span>
                             </label>}
-                            <p className="text-sm text-muted-foreground leading-relaxed">{t(isLocal ? 'localKeyHelp' : 'keyHelp')}</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{t(isLocal ? 'localKeyHelp' : currentInfo?.private_network ? 'lanKeyHelp' : 'keyHelp')}</p>
                             <div className="flex items-center gap-2 flex-wrap pt-2">
                                 <Button type="submit" variant="ink" size="small" loading={busy === 'saving'} disabled={Boolean(busy) || credential.reading}>{t(busy === 'saving' ? 'saving' : 'save')}</Button>
                                 <Button type="button" variant="secondary" size="small" leftIcon={<Refresh size={14} aria-hidden="true" />} loading={busy === 'testing'} disabled={Boolean(busy) || credential.reading} onClick={() => save(true)}>{t(busy === 'testing' ? 'testing' : 'testConnection')}</Button>

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Cromma UI NavButton/Button、Pika 图标、应用品牌图和界面语言设置
- * [OUTPUT]: 提供主页、模式、常用语、模型、关于导航及界面语言切换
+ * [INPUT]: 依赖 Cromma UI NavButton/Button、Pika 图标、应用品牌图、界面语言与外观设置
+ * [OUTPUT]: 提供主页、模式、常用语、模型、关于导航及界面语言、外观切换；外观经 Rust 设置下发原生主题
  * [POS]: Layout 的游戏翻译导航边界，控件皮肤与图标只从 Cromma UI 取得
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,12 @@ import { HomeDefault, Translate, MessageDefault, Settings01, MegaphoneAnnounceme
 import appIcon from '../assets/app-icon.png';
 import { useStore } from './StoreProvider';
 import { showError } from '../utils/toast';
+
+const appearances = [
+  { id: 'system', name: '系统', english: 'Auto' },
+  { id: 'light', name: '浅色', english: 'Light' },
+  { id: 'dark', name: '深色', english: 'Dark' },
+];
 
 const sidebarItems = [
   { name: '主页', english: 'Home', icon: HomeDefault, id: 'home' },
@@ -43,6 +49,11 @@ export default function Sidebar({ activeItem, setActiveItem }) {
           {['zh', 'en'].map(lang => <Button key={lang} size="small" variant={locale === lang ? 'selected' : 'ghost'}
             disabled={!settings} aria-pressed={locale === lang}
             onClick={() => updateSettings({ ui_language: lang }).catch(showError)}>{lang === 'zh' ? '中文' : 'English'}</Button>)}
+        </div>
+        <div className="flex gap-1 px-3 pt-1" role="group" aria-label={locale === 'en' ? 'Appearance' : '外观'}>
+          {appearances.map(item => <Button key={item.id} size="small" variant={settings?.appearance === item.id ? 'selected' : 'ghost'}
+            disabled={!settings} aria-pressed={settings?.appearance === item.id}
+            onClick={() => updateSettings({ appearance: item.id }).catch(showError)}>{locale === 'en' ? item.english : item.name}</Button>)}
         </div>
       </div>
     </aside>

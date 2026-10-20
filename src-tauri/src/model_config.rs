@@ -1,7 +1,8 @@
 /**
  * [INPUT]: reqwest URL 解析与序列化契约；store 和模型管道复用同一端点规范。
- * [OUTPUT]: ModelConfig、端点归一、回环分类与仅供界面渲染的服务属性。
+ * [OUTPUT]: ModelConfig、端点归一、回环 / 私有网络分类与仅供界面渲染的服务属性。
  * [POS]: 模型配置和 URL 策略的原生唯一边界；前端不维护供应商地址或安全判断。
+ *        回环与私有网络由用户自管：允许 HTTP、Key 可选；公网只接受 HTTPS 且必须有 Key。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
@@ -55,8 +56,8 @@ pub fn normalize_api_url(raw: &str, protocol: &str) -> Result<String> {
     {
         bail!("API 地址不能包含用户名、密码、查询参数或片段；Key 请单独保存");
     }
-    if url.scheme() == "http" && !is_loopback(&url) {
-        bail!("远程 API 请使用 HTTPS；本地服务可使用 localhost 或回环地址");
+    if url.scheme() == "http" && !key_optional(&url) {
+        bail!("公网 API 请使用 HTTPS；本机或局域网服务（localhost、192.168.x.x、10.x.x.x、*.local 等）可使用 HTTP");
     }
     let path = url.path().trim_end_matches('/');
     if (protocol == "openai" && path.ends_with("/messages"))
@@ -96,9 +97,32 @@ pub fn is_loopback(url: &Url) -> bool {
             .unwrap_or(false)
 }
 
+/// 私有网络：RFC 1918、链路本地、CGNAT 共享段（Tailscale 等虚拟局域网）、IPv6 ULA 与 mDNS `.local`。
+/// 只认 IP 字面量和 mDNS 后缀；普通域名的解析结果不参与判断。
+pub fn is_private_network(url: &Url) -> bool {
+    let host = url.host_str().unwrap_or_default().trim_matches(['[', ']']);
+    if host.to_ascii_lowercase().ends_with(".local") {
+        return true;
+    }
+    match host.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(ip)) => {
+            let [first, second, ..] = ip.octets();
+            ip.is_private() || ip.is_link_local() || (first == 100 && second & 0xc0 == 64)
+        }
+        Ok(std::net::IpAddr::V6(ip)) => ip.is_unique_local() || ip.is_unicast_link_local(),
+        Err(_) => false,
+    }
+}
+
+/// 用户自管的服务：可用 HTTP，Key 按服务需要填写。
+pub fn key_optional(url: &Url) -> bool {
+    is_loopback(url) || is_private_network(url)
+}
+
 #[derive(serde::Serialize)]
 pub struct EndpointInfo {
     pub is_local: bool,
+    pub private_network: bool,
     pub official_deepseek: bool,
 }
 
@@ -107,6 +131,7 @@ pub fn inspect(raw: &str, protocol: &str) -> Result<EndpointInfo> {
     let url = Url::parse(&endpoint)?;
     Ok(EndpointInfo {
         is_local: is_loopback(&url),
+        private_network: is_private_network(&url),
         official_deepseek: url.scheme() == "https" && url.host_str() == Some("api.deepseek.com"),
     })
 }

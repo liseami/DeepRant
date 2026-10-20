@@ -1,6 +1,6 @@
 [package]
 name = "DeepRant"
-version = "2.0.1"
+version = "2.0.2"
 description = "Desktop game and everyday chat translator"
 authors = ["liseami"]
 license = ""

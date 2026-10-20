@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Tailwind 4、Cromma UI 主题和 CCBaga 的 Laper 应用壳布局参数
- * [OUTPUT]: 提供同款斜纹外框、全宽 Key 横幅、点阵标题、细线工作面与共享模态位置
- * [POS]: 应用布局层；控件边缘、高光、圆角和动效取 Cromma UI，不另造按钮皮肤
+ * [OUTPUT]: 提供浅色 / 深色墨色令牌、同款斜纹外框、全宽 Key 横幅、点阵标题、细线工作面与共享模态位置
+ * [POS]: 应用布局层；颜色只在两组令牌里定义，布局规则只引用令牌；控件边缘、高光、圆角和动效取 Cromma UI，不另造按钮皮肤
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 @import "tailwindcss";
@@ -24,6 +24,7 @@
   --muted: #f3f3f0;
   --input: #fafaf9;
   --panel-outline: #dededb;
+  --dialog-scrim: #00000025;
   --landing-band: 16px;
   --landing-line: color-mix(in srgb, var(--border) 82%, transparent);
   --landing-hatch-line: color-mix(in srgb, var(--foreground) 16%, transparent);
@@ -32,6 +33,20 @@
   --panel-header-height: 48px;
   --panel-header-title-size: 13px;
   --panel-header-title-weight: 600;
+}
+/* -------- 深色墨色令牌：html.dark 由 utils/appearance 依原生主题拨动，须排在 :root 之后才能覆盖 -------- */
+:root.dark {
+  --foreground: #ececea;
+  --muted-foreground: #9b9b97;
+  --border: #353533;
+  --panel: #1b1b1a;
+  --background: #121211;
+  --accent: #262624;
+  --muted: #222220;
+  --input: #1e1e1d;
+  --panel-outline: #353533;
+  --dialog-scrim: #00000080;
+  color-scheme: dark;
 }
 html, body, #root { height: 100%; overflow: hidden; }
 body { user-select: none; }
@@ -49,7 +64,7 @@ input, textarea, code { user-select: text; }
 .key-banner-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
 .key-banner-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .key-banner-form > div { flex-basis: 340px; }
-.app-sidebar { --sidebar: #fff; --sidebar-accent: #ededeb; display: flex; flex-direction: column; width: 240px; flex-shrink: 0; background: var(--sidebar); overflow: hidden; border: 1px solid var(--landing-line); }
+.app-sidebar { --sidebar: var(--panel); --sidebar-accent: color-mix(in srgb, var(--foreground) 8%, var(--panel)); display: flex; flex-direction: column; width: 240px; flex-shrink: 0; background: var(--sidebar); overflow: hidden; border: 1px solid var(--landing-line); }
 .app-brand { display: flex; gap: 10px; align-items: center; height: 72px; flex-shrink: 0; padding: 0 12px 0 22px; }
 .app-brand img { object-fit: cover; flex-shrink: 0; }
 .app-brand strong { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
@@ -70,7 +85,7 @@ input, textarea, code { user-select: text; }
 .landing-section-band { height: var(--landing-band); flex-shrink: 0; border-block: 1px solid var(--landing-line); background-image: var(--landing-hatch); }
 
 /* -------- 自定义场景沿 CCBaga Radix + ModalShell 边界 -------- */
-.app-dialog-overlay { position: fixed; inset: 0; z-index: 1000; background: #00000025; animation: dialog-fade var(--motion-quick) var(--ease-motion); }
+.app-dialog-overlay { position: fixed; inset: 0; z-index: 1000; background: var(--dialog-scrim); animation: dialog-fade var(--motion-quick) var(--ease-motion); }
 .app-dialog-position { position: fixed; z-index: 1001; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 40px); outline: none; }
 @keyframes dialog-fade { from { opacity: 0; } }
 

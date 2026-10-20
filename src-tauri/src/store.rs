@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 settings_db 的 SQLite 事务与旧 JSON 来源、credentials 的系统凭据
- * [OUTPUT]: 提供 AppSettings、模型配置、校验、设置 patch 与快捷键事务持久化入口
+ * [OUTPUT]: 提供 AppSettings、模型配置、校验、设置 patch、快捷键事务持久化与不触碰凭据的启动外观读取
  * [POS]: 设置的唯一写边界；全部配置经校验后入库，迁移验证凭据并提交数据库后才清旧明文
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,7 +17,7 @@ static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 // 模型配置不携带凭据，端点同时决定请求地址与系统凭据账户
 // ---------------------------------------------------------------------------
 
-pub use crate::model_config::{is_loopback, normalize_api_url, ModelConfig};
+pub use crate::model_config::{is_loopback, key_optional, normalize_api_url, ModelConfig};
 pub use crate::model_presets::model_preset;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -104,6 +104,7 @@ pub struct AppSettings {
     pub custom_glossary: String,
     pub custom_instructions: String,
     pub ui_language: String,
+    pub appearance: String,
 }
 
 impl Default for AppSettings {
@@ -125,6 +126,7 @@ impl Default for AppSettings {
             custom_glossary: String::new(),
             custom_instructions: String::new(),
             ui_language: "zh".into(),
+            appearance: "system".into(),
         }
     }
 }
@@ -185,6 +187,9 @@ pub fn validate_settings(settings: &AppSettings) -> Result<()> {
     }
     if !matches!(settings.ui_language.as_str(), "zh" | "en") {
         bail!("界面语言仅支持中文或英文");
+    }
+    if !matches!(settings.appearance.as_str(), "system" | "light" | "dark") {
+        bail!("外观仅支持跟随系统、浅色或深色");
     }
     if !matches!(settings.translation_mode.as_str(), "toxic" | "pro" | "auto") {
         bail!("翻译风格无效，请重新选择");
@@ -312,11 +317,11 @@ fn refresh_key_state(settings: &mut AppSettings) -> Result<()> {
         &settings.custom_model.api_url,
         &settings.custom_model.protocol,
     );
-    let local = service.is_local;
+    let optional = service.is_local || service.private_network;
     settings.custom_model.has_api_key = match key {
         Ok(key) => key.is_some_and(|key| !key.trim().is_empty()),
-        // 无 Key 的本地 Ollama 不依赖用户是否启用 Secret Service。
-        Err(_) if local => false,
+        // 无 Key 的本机 / 局域网服务不依赖用户是否启用 Secret Service。
+        Err(_) if optional => false,
         Err(error) => return Err(error),
     };
     Ok(())
@@ -396,6 +401,24 @@ fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
     Ok(settings)
 }
 
+/// 启动外观只读 SQLite，不触碰系统凭据库；首帧即可使用已保存的深浅色。
+pub fn saved_appearance(app: &AppHandle) -> String {
+    let saved = (|| -> Result<String> {
+        let _guard = SETTINGS_LOCK
+            .lock()
+            .map_err(|_| anyhow!("设置操作被中断"))?;
+        let root = canonical_root(crate::settings_db::read(&settings_directory(app)?)?.root);
+        Ok(root["settings"]["appearance"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string())
+    })();
+    match saved {
+        Ok(appearance) if matches!(appearance.as_str(), "light" | "dark") => appearance,
+        _ => "system".into(),
+    }
+}
+
 pub fn initialize_settings(app: &AppHandle) -> Result<()> {
     get_settings(app).map(|_| ())
 }
@@ -441,7 +464,8 @@ fn apply_patch(current: &AppSettings, patch: Value) -> Result<(AppSettings, Opti
             | "custom_scene_prompt"
             | "custom_glossary"
             | "custom_instructions"
-            | "ui_language" => {
+            | "ui_language"
+            | "appearance" => {
                 value[field] = incoming.clone();
             }
             "custom_model" => {
@@ -611,6 +635,7 @@ mod tests {
             trans_hotkey: HotkeyConfig::new_platform_specific("NumpadEnter"),
             phrases_enabled: true,
             ui_language: "en".into(),
+            appearance: "dark".into(),
             custom_instructions: "保持原意".into(),
             ..AppSettings::default()
         };
@@ -654,6 +679,15 @@ mod tests {
         assert!(defaults.daily_mode);
         assert_eq!(defaults.input_mode, "auto");
         assert!(apply_patch(&current, json!({"input_mode": "hook"})).is_err());
+        assert_eq!(defaults.appearance, "system");
+        assert!(apply_patch(&current, json!({"appearance": "sepia"})).is_err());
+        assert_eq!(
+            apply_patch(&current, json!({"appearance": "dark"}))
+                .unwrap()
+                .0
+                .appearance,
+            "dark"
+        );
         assert_eq!(
             apply_patch(&current, json!({"input_mode": "compose"}))
                 .unwrap()
@@ -695,5 +729,41 @@ mod tests {
         assert!(normalize_api_url("https://example.com?key=secret", "openai").is_err());
         assert!(normalize_api_url("http://example.com", "openai").is_err());
         assert!(normalize_api_url("http://[::1]:11434", "openai").is_ok());
+    }
+
+    #[test]
+    fn private_network_endpoints_accept_http_but_public_hosts_require_https() {
+        for host in [
+            "192.168.1.20:3000",
+            "10.0.0.8",
+            "172.31.255.1",
+            "169.254.10.2",
+            "100.101.102.103",
+            "[fd12:3456::1]",
+            "[fe80::1]",
+            "relay.local:8080",
+        ] {
+            let endpoint = normalize_api_url(&format!("http://{host}"), "openai").unwrap();
+            assert_eq!(endpoint, format!("http://{host}/v1/chat/completions"));
+            let url = reqwest::Url::parse(&endpoint).unwrap();
+            assert!(key_optional(&url) && !is_loopback(&url), "{host}");
+        }
+        for host in [
+            "8.8.8.8",
+            "172.32.0.1",
+            "100.128.0.1",
+            "192.169.0.1",
+            "[2001:db8::1]",
+            "local",
+            "relay.local.example.com",
+            "nas",
+        ] {
+            assert!(
+                normalize_api_url(&format!("http://{host}"), "openai").is_err(),
+                "{host}"
+            );
+        }
+        let public = reqwest::Url::parse("https://192.168.1.20.nip.io/v1").unwrap();
+        assert!(!key_optional(&public));
     }
 }
