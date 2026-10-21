@@ -1,6 +1,6 @@
 /**
  * [INPUT]: store 设置与凭据迁移、shortcut 注册事务、模型与游戏输入管道、input_diagnostics 的权限和阶段快照。
- * [OUTPUT]: 设置/翻译/输入诊断 IPC 与仅主窗口的 Key 查看；启动先套用已存外观，Ready 先激活主窗口，再异步初始化凭据与快捷键。
+ * [OUTPUT]: 设置/翻译/输入诊断 IPC 与仅主窗口的 Key 查看、损坏设置备份恢复；Ready 先显示主窗口，再异步初始化凭据与快捷键。
  * [POS]: 仅编排边界模块；主线程不等待 Keychain，输入失败显示主窗口，浮窗关闭取消；警告日志不记录聊天原文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -39,6 +39,24 @@ async fn get_settings(app_handle: tauri::AppHandle) -> Result<store::AppSettings
     })
     .await
     .map_err(|_| "设置任务被中断".to_string())?
+}
+
+#[tauri::command]
+async fn restore_default_settings(window: tauri::WebviewWindow) -> Result<String, String> {
+    if window.label() != "main" {
+        return Err("只有主窗口可以恢复默认设置".into());
+    }
+    let app = window.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let backup = store::restore_default_settings(&app).map_err(|e| e.to_string())?;
+        desktop_services::apply_appearance(&app, "system");
+        if let Err(error) = shortcut::init_shortcuts(&app) {
+            shell_helper::report_status(&app, "error", &format!("快捷键注册失败：{error}"));
+        }
+        Ok(backup.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|_| "设置恢复任务被中断，请重试读取设置".to_string())?
 }
 
 #[tauri::command]
@@ -304,6 +322,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_version,
             get_settings,
+            restore_default_settings,
             update_settings,
             clear_api_key,
             read_api_key,

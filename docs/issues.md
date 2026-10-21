@@ -62,6 +62,7 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#62](https://github.com/liseami/DeepRant/issues/62) | Rust 明确区分空响应 / 非 JSON / 无最终文本，不再直接调用前端 Response.json。 | 响应解析有原生单测。 |
 | [#63](https://github.com/liseami/DeepRant/issues/63) | 物理 code 录制，小键盘数字 / F 键单键，释放修饰键后执行，应用内冲突回滚。 | NumLock 必须开启；Windows 无法区分 NumpadEnter / Equal，明确拒绝。 |
 | [#64](https://github.com/liseami/DeepRant/issues/64) | 2.0.1 为星际公民的自动游戏输入默认选择原生浮窗，不依赖聊天框复制；保留船名 / 航点语境，确认后核验原窗口与焦点再回填，消息由用户发送。 | 12 组路由回归覆盖星际公民 / LoL、日常及显式模式覆盖；游戏现场与 EAC 兼容由用户验收，不声称已获白名单或认证。 |
+| [#65](https://github.com/liseami/DeepRant/issues/65) | 截图对应设置反序列化失败，所有页面共用设置入口因而同时阻塞。加载时移除只供界面渲染的旧模型状态；真正坏字段仍保留原文，并提供用户确认后的完整备份与默认值恢复，系统凭据不清除。 | 已重新打开。正常 1.1.7 配置本身可迁移，尚未取得报告者原始配置，不能断言具体坏字段；修复代码与回归不等于受影响 Windows 配置已验收，不自动关闭。 |
 | [#66](https://github.com/liseami/DeepRant/issues/66) | 2.0.2 侧栏新增系统 / 浅色 / 深色外观，默认跟随系统；偏好存 SQLite，Rust 启动时只读数据库并下发应用级原生主题，标题栏、主窗口与浮窗 WebView 同步，前端只跟随 prefers-color-scheme 拨动 html.dark。 | 设置校验与 patch 有原生单测；深色视觉由用户验收。 |
 | [#67](https://github.com/liseami/DeepRant/issues/67) | 2.0.2 Base URL 对回环与私有网段（RFC 1918、链路本地、CGNAT 100.64/10、IPv6 ULA / 链路本地、`*.local`）接受 http，Key 可选并显示明文提示；公网仍只接受 https 且必须有 Key，不跟随重定向。 | 17 组地址分类回归；普通域名不经 DNS 解析判断，指向内网的公网域名仍需 https；局域网中转现场由用户验收。 |
 
@@ -89,6 +90,8 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 该发布从首次启动到最终公开共 24 分 15 秒；Intel job 为 16 分 28 秒，ARM 因 Apple 票据网络错误仅重跑失败平台，复用 Windows / Intel 产物。对照 CCBaga 补齐 `cache-on-failure: true`，使失败后仍保存 Rust 编译缓存；修改已通过 actionlint，不为同版本缓存配置重跑整套发布。后续耗时仍取决于编译缓存命中、runner 排队与公证服务。
 
 2026-10-19 追加 #66 / #67：[2.0.2](https://github.com/liseami/DeepRant/releases/tag/v2.0.2) 已通过 [Actions 39366145453](https://github.com/liseami/DeepRant/actions/runs/39366145453) 发布，标签固定受测提交 `23ed5d019172cf2a126055366f87605a99886a04`。三平台构建、Windows 兼容验收与发布五个 job 全部成功，首次推送到公开共 17 分 14 秒。本机先通过 fmt、25 项原生单测、clippy、7 项契约测试与发布脚本测试；发布后下载 10 个公开资产，SHA-256 全部一致，`latest.json` 为 2.0.2 且三平台更新签名与 `.sig` 一致，3 个安装包均有本仓库发布工作流的来源证明。[#66](https://github.com/liseami/DeepRant/issues/66) 与 [#67](https://github.com/liseami/DeepRant/issues/67) 已写明操作步骤与 http 明文边界后按 completed 关闭；深色视觉与局域网中转现场由用户验收。
+
+2026-10-20 追加 #65：已重新打开，避免把没有诊断的关闭状态当成修复证据。截图精确命中设置反序列化错误，但没有报告者原始配置，不能确定具体字段。代码补齐旧模型运行时属性的兼容解码；其余格式错误由主窗口确认后先将固定 SQLite 文件与旧 JSON 完整复制到独立备份目录，再用 SQLite 事务写入默认值。备份失败不写入、写入失败回滚，Unix 备份目录权限为 700；旧 JSON 原文保留，恢复后的数据库关闭旧文件重新导入与清理待办，系统凭据不删除。新增 6 项回归，本机 31 项原生测试、7 项契约检查、前端构建、6 项发布脚本测试、fmt 与 clippy 通过；真实发布签名包验证仍按现有规则忽略，本轮没有发布新版本。Windows 与 macOS CI 及受影响配置的现场结果另行补充。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 

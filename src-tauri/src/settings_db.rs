@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 rusqlite 的事务、serde_json 的设置文档与 tempfile 的旧文件原子替换
- * [OUTPUT]: 提供设置快照、事务提交与旧 JSON 清理；数据库不存在记录时才读取迁移来源
- * [POS]: store 的磁盘边界；单行文档保留未知根字段，提交后才清理旧明文，错误不覆盖可恢复数据
+ * [OUTPUT]: 提供设置快照、事务提交、旧 JSON 清理与先完整备份再恢复默认设置的入口
+ * [POS]: store 的磁盘边界；数据库不存在记录时才读取旧文件，显式恢复保留全部原文且不触碰凭据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
@@ -9,8 +9,8 @@ use rusqlite::{Connection, OptionalExtension};
 use serde_json::{json, Value};
 use std::fs;
 use std::io::{ErrorKind, Write};
-use std::path::Path;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tempfile::NamedTempFile;
 
 const DATABASE_FILENAME: &str = "settings.sqlite3";
@@ -117,6 +117,65 @@ fn write_document(connection: &mut Connection, root: &Value, pending: bool) -> R
 
 pub fn write(directory: &Path, root: &Value, pending: bool) -> Result<()> {
     write_document(&mut connect(directory)?, root, pending)
+}
+
+/// 用户确认后才调用：完整备份成功之前不打开数据库，旧 JSON 不参与恢复后的读取。
+pub fn restore_defaults(directory: &Path, root: &Value) -> Result<PathBuf> {
+    validate_document(root)?;
+    fs::create_dir_all(directory).map_err(|_| anyhow!("无法创建设置目录，原数据已保留"))?;
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| anyhow!("系统时间无效，无法创建设置备份；原数据已保留"))?
+        .as_nanos();
+    let backup_directory = directory.join(format!("settings-backup-{timestamp}"));
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder
+        .recursive(false)
+        .create(&backup_directory)
+        .map_err(|_| anyhow!("无法创建独立设置备份目录，原数据已保留"))?;
+    let backup = || -> std::io::Result<()> {
+        for filename in [
+            DATABASE_FILENAME,
+            "settings.sqlite3-wal",
+            "settings.sqlite3-shm",
+            "settings.sqlite3-journal",
+            LEGACY_FILENAME,
+        ] {
+            let mut original = match fs::File::open(directory.join(filename)) {
+                Ok(file) => file,
+                Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                Err(error) => return Err(error),
+            };
+            if !original.metadata()?.is_file() {
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidData,
+                    "设置备份来源不是文件",
+                ));
+            }
+            let mut copied = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(backup_directory.join(filename))?;
+            std::io::copy(&mut original, &mut copied)?;
+            copied.sync_all()?;
+        }
+        #[cfg(unix)]
+        {
+            fs::File::open(&backup_directory)?.sync_all()?;
+            fs::File::open(directory)?.sync_all()?;
+        }
+        Ok(())
+    };
+    backup().map_err(|_| anyhow!("设置备份未完成，原数据已保留；请检查磁盘空间与目录权限"))?;
+    // SQLite 事务失败会回滚；旧 JSON 原文保留，不在未验证旧 Key 的情况下删除凭据来源。
+    write(directory, root, false)
+        .map_err(|error| anyhow!("{error}；恢复前备份位于 {}", backup_directory.display()))?;
+    Ok(backup_directory)
 }
 
 pub fn read_legacy(directory: &Path) -> Result<Option<Value>> {
@@ -283,5 +342,99 @@ mod tests {
         finish_legacy_cleanup(directory.path(), Some((&legacy, &sanitized))).unwrap();
         assert_eq!(read_legacy(directory.path()).unwrap(), Some(sanitized));
         assert_eq!(read(directory.path()).unwrap().root, document);
+    }
+
+    #[test]
+    fn explicit_restore_backs_up_invalid_settings_and_preserves_legacy_original() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path();
+        write(path, &json!({"settings": {"daily_mode": "invalid"}}), true).unwrap();
+        let database = fs::read(path.join(DATABASE_FILENAME)).unwrap();
+        let legacy = b"{invalid-json-with-original-settings";
+        fs::write(path.join(LEGACY_FILENAME), legacy).unwrap();
+        let defaults = json!({"settings": {"daily_mode": false}});
+
+        let backup = restore_defaults(path, &defaults).unwrap();
+
+        assert_eq!(fs::read(backup.join(DATABASE_FILENAME)).unwrap(), database);
+        assert_eq!(fs::read(backup.join(LEGACY_FILENAME)).unwrap(), legacy);
+        assert_eq!(fs::read(path.join(LEGACY_FILENAME)).unwrap(), legacy);
+        let restored = read(path).unwrap();
+        assert_eq!(restored.root, defaults);
+        assert!(!restored.from_legacy && !restored.legacy_cleanup_pending);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(backup).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
+        }
+    }
+
+    #[test]
+    fn failed_restore_backup_or_transaction_keeps_source_files_unchanged() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path();
+        let original = json!({"settings": {"daily_mode": true}});
+        let defaults = json!({"settings": {"daily_mode": false}});
+        write(path, &original, true).unwrap();
+        let legacy = b"{invalid-legacy";
+        fs::write(path.join(LEGACY_FILENAME), legacy).unwrap();
+        let database = fs::read(path.join(DATABASE_FILENAME)).unwrap();
+        let invalid_sidecar = path.join("settings.sqlite3-wal");
+        fs::create_dir(&invalid_sidecar).unwrap();
+
+        assert!(restore_defaults(path, &defaults).is_err());
+        assert_eq!(fs::read(path.join(DATABASE_FILENAME)).unwrap(), database);
+        assert_eq!(fs::read(path.join(LEGACY_FILENAME)).unwrap(), legacy);
+        fs::remove_dir(invalid_sidecar).unwrap();
+
+        connect(path)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER reject_restore BEFORE UPDATE ON settings_document
+                 BEGIN SELECT RAISE(ABORT, 'test rollback'); END;",
+            )
+            .unwrap();
+        let database = fs::read(path.join(DATABASE_FILENAME)).unwrap();
+        assert!(restore_defaults(path, &defaults).is_err());
+        assert_eq!(fs::read(path.join(DATABASE_FILENAME)).unwrap(), database);
+        assert_eq!(fs::read(path.join(LEGACY_FILENAME)).unwrap(), legacy);
+        let retained = read(path).unwrap();
+        assert_eq!(retained.root, original);
+        assert!(retained.legacy_cleanup_pending);
+    }
+
+    #[test]
+    fn repeated_restore_keeps_each_backup_and_rejects_invalid_defaults_before_writes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path();
+        write(path, &json!({"settings": {"daily_mode": true}}), false).unwrap();
+        let defaults = json!({"settings": {"daily_mode": false}});
+        let first = restore_defaults(path, &defaults).unwrap();
+        let first_database = fs::read(first.join(DATABASE_FILENAME)).unwrap();
+        write(path, &json!({"settings": {"translation_to": "ja"}}), false).unwrap();
+        let second_database = fs::read(path.join(DATABASE_FILENAME)).unwrap();
+        let second = restore_defaults(path, &defaults).unwrap();
+
+        assert_ne!(first, second);
+        assert_eq!(
+            fs::read(first.join(DATABASE_FILENAME)).unwrap(),
+            first_database
+        );
+        assert_eq!(
+            fs::read(second.join(DATABASE_FILENAME)).unwrap(),
+            second_database
+        );
+        let entries = fs::read_dir(path).unwrap().count();
+        assert!(restore_defaults(path, &json!({"settings": null})).is_err());
+        assert!(restore_defaults(
+            path,
+            &json!({"settings": {"custom_model": {"auth": "must-not-persist"}}})
+        )
+        .is_err());
+        assert_eq!(fs::read_dir(path).unwrap().count(), entries);
+        assert_eq!(read(path).unwrap().root, defaults);
     }
 }
