@@ -2,7 +2,7 @@
 > L2 | 父级: ../CLAUDE.md
 成员清单
 StoreProvider.jsx: IPC 设置与模型目录视图，串行提交变更并接收 Rust 最终状态，不持有凭据。
-Layout.jsx: CCBaga 同款外框，先放全宽 Key 横幅，再排列 240px 侧栏与 Panel frame 工作面；常驻桌面通知与更新入口。
+Layout.jsx: CCBaga 同款外框、Key 横幅、侧栏和工作面；设置格式错误时提供确认后的备份恢复入口，成功显示备份位置；常驻桌面通知与更新入口。
 ApiKeyBanner.jsx: 官方 DeepSeek 当前配置缺 Key 时直接输入保存，固定官方申请入口交给 Rust 打开；不重置游戏设置。
 ApiKeyField.jsx: Key 真值只在字段局部状态，显隐、读取重试、晚到响应保护与服务隔离共用一个入口；原值对照避免重复写凭据，共享缓存只持有是否已保存。
 Sidebar.jsx: Cromma NavButton 与 Pika 图标的五项游戏业务导航、界面语言与外观（系统/浅色/深色）入口，外观写入 Rust 设置；不设登录或额度入口。
