@@ -39,12 +39,12 @@ Use **About → Check for updates** in the app, then confirm to download, instal
 1. **Add your Key:** if no DeepSeek Key is saved, the banner at the top lets you enter and save one or visit the [DeepSeek platform](https://platform.deepseek.com/). View, show/hide and edit your current Key in AI models.
 2. **Allow input:** on macOS, click **Open Accessibility settings** in the app and allow DeepRant. On Windows, run DeepRant and the game at matching privilege levels.
 3. **Prepare your game:** select translation languages, game context and shortcut on Home; choose automatic, professional or toxic expression in Modes.
-4. **Translate:** for in-place mode, write your message, put the cursor at the end and press the shortcut (`⌘ + T` by default on macOS); the translating placeholder is replaced with your translation. For Star Citizen / LoL in automatic mode, open an empty chat field, press the shortcut, then write, translate and confirm insertion in the message window.
+4. **Translate:** for Dota 2, choose Automatic or In-place translation, write in the game chat and press the shortcut; for other games in in-place mode, put the cursor at the end and press the shortcut (`⌘ + T` by default on macOS); the translating placeholder is replaced with your translation. For Star Citizen / LoL in automatic mode, open an empty chat field, press the shortcut, then write, translate and confirm insertion in the message window.
 5. **Send yourself:** check the result, then press Enter. DeepRant does not send messages for you.
 
 | Input method | How to use it |
 | --- | --- |
-| **In-place translation** | For chat boxes that support copying. Select backward to the start of the current line, copy, insert the placeholder, then verify focus and placeholder before replacement. New edits are preserved. |
+| **In-place translation** | For chat boxes that support copying. Dota 2 selects the whole chat message; other games select backward to the start of the current line. Copy, insert the placeholder, then verify focus and the current placeholder selection before replacement. Use Daily mode for documents. |
 | **Game input window** | Automatic mode uses this for Star Citizen / LoL, without relying on chat-box copying. Open an empty chat box, trigger the shortcut, write in the window, translate, edit and confirm insertion. |
 | **Daily mode** | Translates already-selected text. In document apps such as Pages, select the passage first. |
 

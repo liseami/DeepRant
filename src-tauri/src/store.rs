@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 settings_db 的 SQLite 事务与旧 JSON 来源、credentials 的系统凭据
- * [OUTPUT]: 提供 AppSettings、模型配置、校验、设置 patch、快捷键事务持久化与不触碰凭据的启动外观读取
- * [POS]: 设置的唯一写边界；全部配置经校验后入库，迁移验证凭据并提交数据库后才清旧明文
+ * [OUTPUT]: 提供 AppSettings、兼容解码、设置 patch、快捷键事务持久化、损坏设置备份恢复与启动外观读取
+ * [POS]: 设置的唯一写边界；全部配置经校验后入库，迁移验证凭据后才清旧明文；格式错误只能经显式恢复并保留原数据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Result};
@@ -327,24 +327,47 @@ fn refresh_key_state(settings: &mut AppSettings) -> Result<()> {
     Ok(())
 }
 
-fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
-    let directory = settings_directory(app)?;
-    let snapshot = crate::settings_db::read(&directory)?;
-    let mut root = canonical_root(snapshot.root);
-    let existing = root.get("settings").cloned();
-    let mut raw = existing.clone().unwrap_or_else(|| json!({}));
-    let legacy_key = raw
-        .get_mut("custom_model")
-        .and_then(Value::as_object_mut)
-        .and_then(|model| model.remove("auth"));
+fn decode_settings(mut raw: Value) -> Result<(AppSettings, Option<Value>)> {
+    let model = raw.get_mut("custom_model").and_then(Value::as_object_mut);
+    let legacy_key = model.and_then(|model| {
+        // 旧缓存可能带有只供界面显示的状态；读取时丢弃，随后由系统重新计算。
+        for field in ["has_api_key", "is_local", "official_deepseek"] {
+            model.remove(field);
+        }
+        model.remove("auth")
+    });
     if legacy_key
         .as_ref()
         .is_some_and(|key| !key.is_string() && !key.is_null())
     {
         bail!("旧 API Key 格式无效，原设置已保留，请先备份 store.json 后修复凭据字段");
     }
-    let mut settings: AppSettings = serde_json::from_value(raw)
-        .map_err(|_| anyhow!("设置格式无效，原数据已保留；请备份应用数据目录后修复"))?;
+    let settings = serde_json::from_value(raw)
+        .map_err(|_| anyhow!("设置格式无效，原数据已保留；可备份并恢复默认设置"))?;
+    Ok((settings, legacy_key))
+}
+
+/// 仅处理无法解析的设置；原数据完整备份后才写默认值，不读取或删除系统凭据。
+pub fn restore_default_settings(app: &AppHandle) -> Result<PathBuf> {
+    let _guard = SETTINGS_LOCK
+        .lock()
+        .map_err(|_| anyhow!("设置操作被中断，请重启应用"))?;
+    let directory = settings_directory(app)?;
+    let mut root = canonical_root(crate::settings_db::read(&directory)?.root);
+    if decode_settings(root["settings"].clone()).is_ok() {
+        bail!("当前设置格式正常，无需恢复默认设置；请按原错误提示处理");
+    }
+    root["settings"] = serialized_settings(&AppSettings::default());
+    crate::settings_db::restore_defaults(&directory, &root)
+}
+
+fn load_unlocked(app: &AppHandle) -> Result<AppSettings> {
+    let directory = settings_directory(app)?;
+    let snapshot = crate::settings_db::read(&directory)?;
+    let mut root = canonical_root(snapshot.root);
+    let existing = root.get("settings").cloned();
+    let (mut settings, legacy_key) =
+        decode_settings(existing.clone().unwrap_or_else(|| json!({})))?;
     settings.custom_model.api_url = normalize_api_url(
         &settings.custom_model.api_url,
         &settings.custom_model.protocol,
@@ -626,144 +649,5 @@ pub fn set_phrases_enabled(app: &AppHandle, enabled: bool) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn legacy_root_layout_keeps_unknown_metadata_and_every_setting() {
-        let mut configured = AppSettings {
-            trans_hotkey: HotkeyConfig::new_platform_specific("NumpadEnter"),
-            phrases_enabled: true,
-            ui_language: "en".into(),
-            appearance: "dark".into(),
-            custom_instructions: "保持原意".into(),
-            ..AppSettings::default()
-        };
-        configured.phrases[0].phrase = "保留常用语和快捷键".into();
-        configured.phrases[0].hotkey = HotkeyConfig::new_platform_specific("F7");
-        configured.phrases[0].enabled = false;
-        let settings = serialized_settings(&configured);
-        let mut direct = settings.clone();
-        direct["other"] = json!({"retained": true});
-        let canonical = canonical_root(direct);
-        assert_eq!(canonical["settings"], settings);
-        assert_eq!(canonical["other"], json!({"retained": true}));
-        assert_eq!(canonical_root(canonical.clone()), canonical);
-        let directory = tempfile::tempdir().unwrap();
-        crate::settings_db::write(directory.path(), &canonical, false).unwrap();
-        let persisted = crate::settings_db::read(directory.path()).unwrap().root;
-        assert_eq!(persisted, canonical);
-        let restored: AppSettings = serde_json::from_value(persisted["settings"].clone()).unwrap();
-        assert_eq!(serialized_settings(&restored), settings);
-    }
-
-    #[test]
-    fn patch_rejects_invalid_fields_and_never_serializes_credentials() {
-        let current = AppSettings::default();
-        assert!(apply_patch(&current, json!({"trans_hotkey": {}})).is_err());
-        assert!(apply_patch(&current, json!({"unknown": true})).is_err());
-        assert!(apply_patch(&current, json!({"daily_mode": "yes"})).is_err());
-        let (next, secret) =
-            apply_patch(&current, json!({"custom_model": {"auth": "test-secret"}})).unwrap();
-        assert_eq!(secret.as_deref(), Some("test-secret"));
-        assert!(!serialized_settings(&next)
-            .to_string()
-            .contains("test-secret"));
-        assert!(
-            apply_patch(&current, json!({"custom_model": {"auth": " "}}))
-                .unwrap()
-                .1
-                .is_none()
-        );
-        let defaults: AppSettings = serde_json::from_value(json!({"daily_mode": true})).unwrap();
-        assert!(defaults.daily_mode);
-        assert_eq!(defaults.input_mode, "auto");
-        assert!(apply_patch(&current, json!({"input_mode": "hook"})).is_err());
-        assert_eq!(defaults.appearance, "system");
-        assert!(apply_patch(&current, json!({"appearance": "sepia"})).is_err());
-        assert_eq!(
-            apply_patch(&current, json!({"appearance": "dark"}))
-                .unwrap()
-                .0
-                .appearance,
-            "dark"
-        );
-        assert_eq!(
-            apply_patch(&current, json!({"input_mode": "compose"}))
-                .unwrap()
-                .0
-                .input_mode,
-            "compose"
-        );
-        assert_eq!(defaults.custom_model.model_name, "deepseek-flash");
-    }
-
-    #[test]
-    fn endpoints_are_idempotent_and_disallow_embedded_credentials() {
-        for (input, protocol, expected) in [
-            (
-                "https://api.deepseek.com",
-                "openai",
-                "https://api.deepseek.com/chat/completions",
-            ),
-            (
-                "https://example.com/v1/",
-                "openai",
-                "https://example.com/v1/chat/completions",
-            ),
-            (
-                "http://localhost:11434",
-                "openai",
-                "http://localhost:11434/v1/chat/completions",
-            ),
-            (
-                "https://api.anthropic.com",
-                "anthropic",
-                "https://api.anthropic.com/v1/messages",
-            ),
-        ] {
-            assert_eq!(normalize_api_url(input, protocol).unwrap(), expected);
-            assert_eq!(normalize_api_url(expected, protocol).unwrap(), expected);
-        }
-        assert!(normalize_api_url("https://key@example.com", "openai").is_err());
-        assert!(normalize_api_url("https://example.com?key=secret", "openai").is_err());
-        assert!(normalize_api_url("http://example.com", "openai").is_err());
-        assert!(normalize_api_url("http://[::1]:11434", "openai").is_ok());
-    }
-
-    #[test]
-    fn private_network_endpoints_accept_http_but_public_hosts_require_https() {
-        for host in [
-            "192.168.1.20:3000",
-            "10.0.0.8",
-            "172.31.255.1",
-            "169.254.10.2",
-            "100.101.102.103",
-            "[fd12:3456::1]",
-            "[fe80::1]",
-            "relay.local:8080",
-        ] {
-            let endpoint = normalize_api_url(&format!("http://{host}"), "openai").unwrap();
-            assert_eq!(endpoint, format!("http://{host}/v1/chat/completions"));
-            let url = reqwest::Url::parse(&endpoint).unwrap();
-            assert!(key_optional(&url) && !is_loopback(&url), "{host}");
-        }
-        for host in [
-            "8.8.8.8",
-            "172.32.0.1",
-            "100.128.0.1",
-            "192.169.0.1",
-            "[2001:db8::1]",
-            "local",
-            "relay.local.example.com",
-            "nas",
-        ] {
-            assert!(
-                normalize_api_url(&format!("http://{host}"), "openai").is_err(),
-                "{host}"
-            );
-        }
-        let public = reqwest::Url::parse("https://192.168.1.20.nip.io/v1").unwrap();
-        assert!(!key_optional(&public));
-    }
-}
+#[path = "store_tests.rs"]
+mod tests;

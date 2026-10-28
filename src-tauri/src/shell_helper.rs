@@ -1,7 +1,7 @@
 /**
  * [INPUT]: store / game_composer / inline_translation、clipboard-manager 与 native_keyboard 主线程注入；平台 API 提供权限、焦点和修饰键状态。
  * [OUTPUT]: 原位翻译/常用语、共享 BusyGuard、有限选区与 Unicode 回填；诊断事件只含阶段和原文恢复可用标志。
- * [POS]: 串行原生输入边界；占位提交/回滚交给 inline_translation，日常只处理原选区，游戏向当前行首选取而不全选文档。
+ * [POS]: 串行原生输入边界；日常只处理原选区，Dota 2 选整条聊天，其余游戏向行首选取；占位提交/回滚交给 inline_translation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 use anyhow::{anyhow, bail, Context, Result};
@@ -25,6 +25,33 @@ const RELEASE_TIMEOUT: Duration = Duration::from_secs(2);
 const PASTE_SETTLE: Duration = Duration::from_millis(200);
 static INPUT_BUSY: AtomicBool = AtomicBool::new(false);
 static COPY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum InputSelection {
+    Existing,
+    CurrentLine,
+    Chat,
+}
+impl InputSelection {
+    pub(crate) fn for_context(daily_mode: bool, scene: &str) -> Self {
+        match (daily_mode, scene) {
+            (true, _) => Self::Existing,
+            (false, "dota2") => Self::Chat,
+            (false, _) => Self::CurrentLine,
+        }
+    }
+
+    fn keys(self) -> Option<(Vec<Key>, Key)> {
+        match self {
+            Self::Existing => None,
+            Self::Chat => Some((vec![shortcut_modifier()], Key::Unicode('a'))),
+            #[cfg(target_os = "macos")]
+            Self::CurrentLine => Some((vec![Key::Meta, Key::Shift], Key::LeftArrow)),
+            #[cfg(not(target_os = "macos"))]
+            Self::CurrentLine => Some((vec![Key::Shift], Key::Home)),
+        }
+    }
+}
 
 pub fn report_status(app: &AppHandle, state: &str, message: &str) {
     crate::input_diagnostics::record(state, message);
@@ -89,7 +116,15 @@ impl InputTransaction {
         })
     }
 
-    pub(crate) fn copy_text(&self, select_current_line: bool) -> Result<String> {
+    pub(crate) fn select_text(&self, selection: InputSelection) -> Result<()> {
+        if let Some((modifiers, key)) = selection.keys() {
+            wait_for_modifiers(&self.focus)?;
+            modified_key(&self.app, &self.focus, modifiers, key, 1)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn copy_text(&self, selection: InputSelection) -> Result<String> {
         self.focus.check()?;
         wait_for_modifiers(&self.focus)?;
         let mut clipboard = ClipboardRestore::new(&self.app)?;
@@ -100,23 +135,7 @@ impl InputTransaction {
         );
         clipboard.write(&marker)?;
         let revision = platform::clipboard_revision();
-        if select_current_line {
-            report_status(
-                &self.app,
-                "copy_current_line",
-                "正在从光标向前选到当前发言行首",
-            );
-            #[cfg(target_os = "macos")]
-            modified_key(
-                &self.app,
-                &self.focus,
-                vec![Key::Meta, Key::Shift],
-                Key::LeftArrow,
-                1,
-            )?;
-            #[cfg(not(target_os = "macos"))]
-            modified_key(&self.app, &self.focus, vec![Key::Shift], Key::Home, 1)?;
-        }
+        self.select_text(selection)?;
         shortcut(&self.app, &self.focus, 'c')?;
         report_status(
             &self.app,
@@ -144,7 +163,7 @@ impl InputTransaction {
             }
             std::thread::sleep(POLL_INTERVAL);
         }
-        bail!("当前输入框没有复制出文本。请先选中文本；游戏若禁用复制，请在首页切换游戏输入浮窗。Windows 还需检查双方权限级别是否一致，macOS 需授予辅助功能权限。")
+        bail!("当前输入框没有复制出文本。Dota 2 请在首页选择 Dota 2 场景和原位翻译，打开聊天框并输入原文后重试；日常模式需先选中文字。Windows 请检查双方权限级别，macOS 请检查辅助功能权限。")
     }
 
     pub(crate) fn paste(&self, text: &str) -> Result<()> {
@@ -180,7 +199,8 @@ pub async fn trans_and_replace_text(app: &AppHandle) -> Result<()> {
     if crate::game_composer::should_compose(&settings) {
         return crate::game_composer::open(app).await;
     }
-    crate::inline_translation::replace(app, !settings.daily_mode, &settings.ui_language).await
+    let selection = InputSelection::for_context(settings.daily_mode, &settings.game_scene);
+    crate::inline_translation::replace(app, selection, &settings.ui_language).await
 }
 
 pub async fn send_phrase(app: &AppHandle, phrase: &str) -> Result<()> {
@@ -220,12 +240,21 @@ fn wait_for_modifiers(focus: &FocusWatch) -> Result<()> {
     focus.check()
 }
 
-fn shortcut(app: &AppHandle, focus: &FocusWatch, letter: char) -> Result<()> {
+fn shortcut_modifier() -> Key {
     #[cfg(target_os = "macos")]
-    let modifier = Key::Meta;
+    return Key::Meta;
     #[cfg(not(target_os = "macos"))]
-    let modifier = Key::Control;
-    modified_key(app, focus, vec![modifier], Key::Unicode(letter), 1)
+    return Key::Control;
+}
+
+fn shortcut(app: &AppHandle, focus: &FocusWatch, letter: char) -> Result<()> {
+    modified_key(
+        app,
+        focus,
+        vec![shortcut_modifier()],
+        Key::Unicode(letter),
+        1,
+    )
 }
 
 fn modified_key(
@@ -710,6 +739,26 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn dota_selects_the_whole_chat_without_changing_document_selection() {
+        for scene in ["dota2", "custom", "lol", "star_citizen"] {
+            let daily = InputSelection::for_context(true, scene);
+            assert_eq!(daily, InputSelection::Existing);
+            assert!(daily.keys().is_none());
+        }
+        let dota = InputSelection::for_context(false, "dota2");
+        assert_eq!(dota, InputSelection::Chat);
+        assert_eq!(
+            dota.keys(),
+            Some((vec![shortcut_modifier()], Key::Unicode('a')))
+        );
+        for scene in ["custom", "lol", "star_citizen"] {
+            assert_eq!(
+                InputSelection::for_context(false, scene),
+                InputSelection::CurrentLine
+            );
+        }
+    }
     #[test]
     fn focus_failures_keep_ax_errors_distinct_from_real_focus_changes() {
         assert!(focus_failure(Ok(true)).is_none());

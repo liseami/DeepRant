@@ -1,10 +1,10 @@
 /**
- * [INPUT]: shell_helper 的有限选区 / 剪贴板 / 焦点事务，ai_translator 的最终译文，界面语言决定固定占位。
+ * [INPUT]: shell_helper 的场景选区 / 剪贴板 / 焦点事务，ai_translator 的最终译文，界面语言决定固定占位。
  * [OUTPUT]: 原位 copy → 占位 → 核验提交 / 回滚；只内存原文恢复的可用查询与用户显式复制。
  * [POS]: 可见翻译生命周期；只替换精确匹配的当前占位选区，焦点或编辑变化后保存原文、不追逐光标覆盖新内容。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-use crate::shell_helper::{report_status, BusyGuard, InputTransaction};
+use crate::shell_helper::{report_status, BusyGuard, InputSelection, InputTransaction};
 use anyhow::{anyhow, bail, Context, Result};
 use std::sync::Mutex;
 use tauri::AppHandle;
@@ -53,7 +53,7 @@ fn require_progress_selection(selected: &str, progress: &str) -> Result<()> {
 
 fn verify_progress(transaction: &InputTransaction, progress: &str) -> Result<()> {
     // 不移动光标、不重新选行或全文：用户编辑 / 切换选区后，复制结果无法再证明占位所有权。
-    require_progress_selection(&transaction.copy_text(false)?, progress)
+    require_progress_selection(&transaction.copy_text(InputSelection::Existing)?, progress)
 }
 
 fn restore_original(transaction: &InputTransaction, original: &str, progress: &str) -> Result<()> {
@@ -88,7 +88,7 @@ fn fail_with_recovery(
 
 pub(crate) async fn replace(
     app: &AppHandle,
-    select_current_line: bool,
+    selection: InputSelection,
     language: &str,
 ) -> Result<()> {
     let busy = BusyGuard::acquire()?;
@@ -97,11 +97,16 @@ pub(crate) async fn replace(
     let (transaction, original) = tauri::async_runtime::spawn_blocking(move || {
         let transaction = InputTransaction::new(app, busy)?;
         report_status(&transaction.app, "copying", "正在读取要翻译的选区");
-        let original = transaction.copy_text(select_current_line)?;
+        let original = transaction.copy_text(selection)?;
         let prepare = (|| -> Result<()> {
             transaction.paste(progress)?;
-            // 占位全部是独立 BMP 字符，Shift 左的次数不涉及原文中的 emoji 或组合字符。
-            transaction.select_previous_chars(progress.chars().count())?;
+            if selection == InputSelection::Chat {
+                // Dota 2 沿用聊天框全选；只在准备时选择，模型返回后不重新全选。
+                transaction.select_text(InputSelection::Chat)?;
+            } else {
+                // 占位全部是独立 BMP 字符，不依赖原文中的 emoji 或组合字符长度。
+                transaction.select_previous_chars(progress.chars().count())?;
+            }
             verify_progress(&transaction, progress)
         })();
         if let Err(error) = prepare {
