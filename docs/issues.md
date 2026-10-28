@@ -1,6 +1,6 @@
 <!--
-[INPUT]: GitHub issue / PR 原始诉求、独立实现与主 Agent 技术验收证据。
-[OUTPUT]: 逐条需求覆盖、公开交付证据，以及现场验收和历史凭据的处理边界。
+[INPUT]: GitHub issue / PR 原始诉求、实现差异、合并发布状态与主 Agent 技术验收证据。
+[OUTPUT]: 逐条需求覆盖、待交付修复与公开产物证据，以及现场验收和历史凭据的处理边界。
 [POS]: README 与发布决策的证据台账，历史模型诉求保留原名，当前产品能力按通用实现记录。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -10,7 +10,7 @@
 
 ## 架构落点
 
-Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框使用原位事务：游戏向前选中当前发言，日常只处理原选区；确认复制后显示翻译占位，完成或失败时核对占位与焦点再替换/恢复，不覆盖用户新编辑。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 与星际公民的自动输入方式默认走浮窗，其他游戏也可选择；没有键盘监听、游戏 hook 或进程白名单。
+Rust 统一持有 SQLite 设置、系统凭据和模型请求。原位事务按输入上下文选择范围：Dota 2 非日常模式用平台 Ctrl / Cmd+A 选择整条聊天，其余游戏向前选到当前行首，日常只处理原选区。确认复制后显示翻译占位；Dota 2 仅在准备占位时再次全选，完成或失败时只复制当前选区，核对占位与焦点再替换 / 恢复，不重新选择或覆盖用户新编辑。禁止复制的游戏使用独立输入浮窗：先打开空聊天框，快捷键唤起浮窗，写消息、翻译、预览、确认后 Unicode 回填，不发送回车。LoL 与星际公民的自动输入方式默认走浮窗，Dota 2 的自动方式保留原位翻译，其他游戏也可选择浮窗；没有键盘监听、游戏 hook 或进程白名单。
 
 所有输入方式共用语言、表达风格、通用提示词和术语表。API 连接测试与翻译共用原生请求，凭据存入系统凭据库；诊断只含服务名、协议、模型、耗时与脱敏错误。普通模型预算 2048 token / 60 秒，通用推理兼容预算 16384 token / 120 秒，仅解析最终文本；轻量预设为官方 OpenAI `gpt-6-luna` 与本地 Qwen3.5 4B，不再展示专用 R1 入口。官方 OpenAI 默认禁用思考、兼容开启使用低推理强度，非官方兼容端点保留单 user 回合以支持旧本地模型；Anthropic 请求不受这些扩展字段影响。
 
@@ -62,14 +62,19 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 | [#62](https://github.com/liseami/DeepRant/issues/62) | Rust 明确区分空响应 / 非 JSON / 无最终文本，不再直接调用前端 Response.json。 | 响应解析有原生单测。 |
 | [#63](https://github.com/liseami/DeepRant/issues/63) | 物理 code 录制，小键盘数字 / F 键单键，释放修饰键后执行，应用内冲突回滚。 | NumLock 必须开启；Windows 无法区分 NumpadEnter / Equal，明确拒绝。 |
 | [#64](https://github.com/liseami/DeepRant/issues/64) | 2.0.1 为星际公民的自动游戏输入默认选择原生浮窗，不依赖聊天框复制；保留船名 / 航点语境，确认后核验原窗口与焦点再回填，消息由用户发送。 | 12 组路由回归覆盖星际公民 / LoL、日常及显式模式覆盖；游戏现场与 EAC 兼容由用户验收，不声称已获白名单或认证。 |
-| [#65](https://github.com/liseami/DeepRant/issues/65) | 截图对应设置反序列化失败，所有页面共用设置入口因而同时阻塞。加载时移除只供界面渲染的旧模型状态；真正坏字段仍保留原文，并提供用户确认后的完整备份与默认值恢复，系统凭据不清除。 | 已重新打开。正常 1.1.7 配置本身可迁移，尚未取得报告者原始配置，不能断言具体坏字段；修复代码与回归不等于受影响 Windows 配置已验收，不自动关闭。 |
+| [#65](https://github.com/liseami/DeepRant/issues/65) | 截图对应设置反序列化失败，所有页面共用设置入口因而同时阻塞。加载时移除只供界面渲染的旧模型状态；真正坏字段仍保留原文，并提供用户确认后的完整备份与默认值恢复，系统凭据不清除。拟合并 #68，随 2.0.3 交付。 | 正常 1.1.7 配置本身可迁移，尚未取得报告者原始配置，不能断言具体坏字段；历史修复 CI 已通过，本轮集成检查与发布尚在进行，不等同于受影响 Windows 配置已现场验收。 |
 | [#66](https://github.com/liseami/DeepRant/issues/66) | 2.0.2 侧栏新增系统 / 浅色 / 深色外观，默认跟随系统；偏好存 SQLite，Rust 启动时只读数据库并下发应用级原生主题，标题栏、主窗口与浮窗 WebView 同步，前端只跟随 prefers-color-scheme 拨动 html.dark。 | 设置校验与 patch 有原生单测；深色视觉由用户验收。 |
 | [#67](https://github.com/liseami/DeepRant/issues/67) | 2.0.2 Base URL 对回环与私有网段（RFC 1918、链路本地、CGNAT 100.64/10、IPv6 ULA / 链路本地、`*.local`）接受 http，Key 可选并显示明文提示；公网仍只接受 https 且必须有 Key，不跟随重定向。 | 17 组地址分类回归；普通域名不经 DNS 解析判断，指向内网的公网域名仍需 https；局域网中转现场由用户验收。 |
+| [#69](https://github.com/liseami/DeepRant/issues/69) | Dota 2 原位翻译在读取原文前改用了 Shift+Home / Cmd+Shift+Left；恢复非日常 Dota 2 聊天框的 Ctrl / Cmd+A，并用于占位准备。提交与回滚仍只核验当前精确占位选区，Dota 2 自动输入继续原位翻译。拟随 2.0.3 交付。 | 未进行 Dota 2 游戏现场测试；代码修复、选区策略回归与构建检查不证明游戏现场通过。其他游戏保持当前行选取，日常保持用户原选区；本轮集成 CI、签名包与公开发布尚待完成。 |
 
 ## PR 诉求独立吸收
 
 - [#38](https://github.com/liseami/DeepRant/pull/38)：历史诉求是本地 DeepSeek-R1。独立实现吸收的是本地模型与推理能力：Ollama 无需 Key 的回环端点、可编辑模型、通用推理预算 / 超时、think 块剥离，过滤不再丢掉有效前文。当前轻量起始配置使用 Qwen3.5 4B，不再展示专用 R1 预设；仍可按服务能力自行配置历史模型。原 PR 未合并。
 - [#59](https://github.com/liseami/DeepRant/pull/59)：Anthropic Messages、原生测连、Base URL 归一和详细诊断均已独立实现；可复制诊断只包含安全字段。没有吸收 Key 前缀日志、原始响应、重复请求管道或更换更新信任根。原 PR 未合并。
+
+## 待合并修复
+
+- [#68](https://github.com/liseami/DeepRant/pull/68)：本仓库设置恢复修复，head 为 `f96d04c65a8037d57c2807a7cae277bfb498560e`。独立审查未发现阻止合并的正确性问题，PR 的 [Checks 39535740412](https://github.com/liseami/DeepRant/actions/runs/39535740412) 在 Windows 2025 与 macOS 15 均通过，无未解决审查线程。计划与 #69 一同纳入 2.0.3；本段记录计划，不代表合并或发布已经完成。恢复仅处理合法设置文档内的解码失败，不将损坏数据库、非法 JSON、语义校验或系统凭据错误当成可重置设置。
 
 ## 验证与交付
 
@@ -92,6 +97,10 @@ Rust 统一持有 SQLite 设置、系统凭据和模型请求。普通输入框�
 2026-10-19 追加 #66 / #67：[2.0.2](https://github.com/liseami/DeepRant/releases/tag/v2.0.2) 已通过 [Actions 39366145453](https://github.com/liseami/DeepRant/actions/runs/39366145453) 发布，标签固定受测提交 `23ed5d019172cf2a126055366f87605a99886a04`。三平台构建、Windows 兼容验收与发布五个 job 全部成功，首次推送到公开共 17 分 14 秒。本机先通过 fmt、25 项原生单测、clippy、7 项契约测试与发布脚本测试；发布后下载 10 个公开资产，SHA-256 全部一致，`latest.json` 为 2.0.2 且三平台更新签名与 `.sig` 一致，3 个安装包均有本仓库发布工作流的来源证明。[#66](https://github.com/liseami/DeepRant/issues/66) 与 [#67](https://github.com/liseami/DeepRant/issues/67) 已写明操作步骤与 http 明文边界后按 completed 关闭；深色视觉与局域网中转现场由用户验收。
 
 2026-10-20 追加 #65：已重新打开，避免把没有诊断的关闭状态当成修复证据。截图精确命中设置反序列化错误，但没有报告者原始配置，不能确定具体字段。代码补齐旧模型运行时属性的兼容解码；其余格式错误由主窗口确认后先将固定 SQLite 文件与旧 JSON 完整复制到独立备份目录，再用 SQLite 事务写入默认值。备份失败不写入、写入失败回滚，Unix 备份目录权限为 700；旧 JSON 原文保留，恢复后的数据库关闭旧文件重新导入与清理待办，系统凭据不删除。新增 6 项回归，本机 31 项原生测试、7 项契约检查、前端构建、6 项发布脚本测试、fmt 与 clippy 通过；真实发布签名包验证仍按现有规则忽略，本轮没有发布新版本。Windows 与 macOS CI 及受影响配置的现场结果另行补充。
+
+2026-10-27 追加 #69 / #65 / #68：#69 报告浏览器可原位翻译，Dota 2 提示没有复制出文本，浮窗可用。代码回归点是新版将游戏原文选择统一为向行首选取；这条路径依赖目标输入框支持 Shift+Home（Windows）或 Cmd+Shift+Left（macOS），复制超时本身不能证明游戏禁止复制。修复用 `InputSelection` 明确三个范围：非日常 Dota 2 使用 `Chat`，初次复制和占位准备发送 Ctrl / Cmd+A；其他游戏使用 `CurrentLine`；日常使用 `Existing`。模型返回后的提交与失败回滚始终使用 `Existing` 复制并精确核验已选占位，不在等待后重新全选，保留焦点变化与用户编辑的取消边界，不自动发送消息。
+
+本轮计划合并 #68，并将设置恢复与 Dota 2 修复一起发布为 2.0.3。本机集成检查正在进行；最终提交的跨平台 CI、签名安装包、更新签名和公开资产验证尚未完成，取得证据后另行记录。没有 Dota 2 现场会话，也没有 #65 报告者原始配置，不能宣称游戏输入或受影响 Windows 配置已实测通过；这些边界独立于代码合并及版本交付状态。
 
 供应商资料：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Ollama Qwen3.5 4B](https://ollama.com/library/qwen3.5:4b)、[腾讯 TokenHub](https://cloud.tencent.com/document/product/1823/130079)、[腾讯旧 R1 下线](https://cloud.tencent.com/announce/detail/2258)、[硅基](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)、[302.AI](https://doc.302.ai/171145944e0)、[R1 历史兼容建议](https://github.com/deepseek-ai/DeepSeek-R1#usage-recommendations)。
 
